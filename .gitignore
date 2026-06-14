@@ -1,0 +1,11 @@
+# Token de autenticacao — NUNCA subir para o GitHub
+config.json
+
+# Dependencias Node
+node_modules/
+
+# Logs de diagnostico
+*.log
+diag-auth.log
+verificar-auth.log
+debug.log

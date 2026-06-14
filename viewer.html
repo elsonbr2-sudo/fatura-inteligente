@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fatura Inteligente — Visualizador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F0EEF9;--sidebar:#2D2B8A;--surface:#FFFFFF;--surface2:#F5F3FC;
+  --border:#E4E1F5;--primary:#2D2B8A;--primary-lt:#5B59D6;
+  --red:#E05252;--green:#22C55E;--text:#1A1A2E;--muted:#7C7C9C;
+  --card-shadow:0 2px 12px rgba(45,43,138,.08);
+  --mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--serif:'DM Serif Display',serif;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#C4BFEA;border-radius:99px}
+
+.app-shell{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:225px;flex-shrink:0;background:var(--sidebar);display:flex;flex-direction:column;overflow-y:auto}
+.sb-logo{padding:1.5rem 1.2rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-logo-title{font-family:var(--serif);font-size:1.1rem;color:#fff;display:block;margin-bottom:.3rem}
+.sb-logo-badge{font-family:var(--mono);font-size:.58rem;background:rgba(255,255,255,.2);color:#fff;padding:2px 7px;border-radius:4px;letter-spacing:.08em}
+.sb-badge-ro{font-family:var(--mono);font-size:.58rem;background:#f59e0b33;color:#f59e0b;padding:2px 7px;border-radius:4px;letter-spacing:.08em;margin-left:4px}
+.sb-section{padding:.6rem 0}
+.sb-section+.sb-section{border-top:1px solid rgba(255,255,255,.08)}
+.sb-label{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:700;padding:0 1.2rem;margin-bottom:.3rem;display:block}
+.nav-item{display:flex;align-items:center;gap:.65rem;padding:.52rem 1rem;margin:0 .5rem;cursor:pointer;border:none;background:none;color:rgba(255,255,255,.65);font-family:var(--sans);font-size:.8rem;font-weight:500;width:calc(100% - 1rem);text-align:left;transition:all .15s;border-radius:8px}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-item.active{color:var(--primary);background:#fff;font-weight:600}
+.nav-icon{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.sb-filters{padding:.6rem 1.1rem}
+.sf-label{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);font-weight:600;margin-bottom:.28rem;display:block;margin-top:.55rem}
+.sf-label:first-child{margin-top:0}
+.sf-select{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:.38rem .6rem;border-radius:7px;font-size:.72rem;font-family:var(--mono);cursor:pointer;outline:none}
+.sf-select:focus{border-color:rgba(255,255,255,.4)}
+.sf-select option{background:var(--sidebar);color:#fff}
+.sb-bottom{margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding:.5rem 0}
+.sb-status{padding:.6rem 1.2rem .4rem;font-size:.65rem;color:rgba(255,255,255,.35);font-family:var(--mono)}
+.sb-status span{display:block;margin-bottom:2px}
+
+/* MAIN */
+.main-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.content{padding:1.75rem 2rem;flex:1}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.page-title{font-family:var(--serif);font-size:1.7rem;color:var(--text)}
+.page-sub{font-size:.78rem;color:var(--muted);margin-top:.2rem}
+.page-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+
+/* BUTTONS */
+.btn{border:none;cursor:pointer;font-family:var(--sans);font-weight:600;transition:all .2s;border-radius:9px;font-size:.8rem;padding:.5rem 1.1rem}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-lt)}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.5rem .9rem;box-shadow:var(--card-shadow)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.3rem;box-shadow:var(--card-shadow)}
+.kpi-label{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.5rem}
+.kpi-value{font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.kpi-card.c-primary .kpi-value{color:var(--primary)}
+.kpi-card.c-dark{background:var(--primary);border-color:var(--primary)}
+.kpi-card.c-dark .kpi-label{color:rgba(255,255,255,.6)}
+.kpi-card.c-dark .kpi-value{color:#fff;font-size:1.15rem}
+.kpi-card.c-dark .kpi-sub{color:rgba(255,255,255,.5)}
+.kpi-sub{font-size:.68rem;color:var(--muted)}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:3fr 2fr;gap:1.1rem;margin-bottom:1.1rem}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.4rem;box-shadow:var(--card-shadow)}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.875rem}
+
+/* TABLE */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--card-shadow);overflow:hidden}
+.table-toolbar{display:flex;align-items:center;gap:.75rem;padding:.875rem 1.1rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.search-box{flex:1;min-width:160px;position:relative}
+.search-box input{width:100%;border:1px solid var(--border);border-radius:8px;padding:.42rem .7rem .42rem 2rem;font-size:.78rem;font-family:var(--sans);background:var(--surface2);color:var(--text);outline:none}
+.search-box input:focus{border-color:var(--primary)}
+.search-box::before{content:'🔍';position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.75rem;pointer-events:none}
+.filter-sel{border:1px solid var(--border);border-radius:8px;padding:.42rem .65rem;font-size:.75rem;font-family:var(--mono);background:var(--surface2);color:var(--text);cursor:pointer;outline:none}
+.table-count{font-size:.72rem;color:var(--muted);margin-left:auto;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+thead th{padding:.6rem 1rem;text-align:left;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:2px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+thead th:hover{color:var(--primary)}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:.6rem 1rem;vertical-align:middle}
+td.mono{font-family:var(--mono);font-size:.75rem}
+.resp-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .55rem;border-radius:99px;font-size:.7rem;font-weight:600}
+.resp-dot{width:7px;height:7px;border-radius:50%}
+.parcela-badge{font-family:var(--mono);font-size:.65rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:1px 6px;border-radius:4px;white-space:nowrap}
+.origem-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
+
+/* RESP CARDS */
+.resp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.875rem;margin-bottom:1.5rem}
+.resp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.3rem;box-shadow:var(--card-shadow)}
+.resp-card-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem}
+.resp-card-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.resp-card-name{font-weight:600;font-size:.85rem}
+.resp-card-total{font-family:var(--mono);font-size:1.05rem;font-weight:700;margin-bottom:.2rem}
+.resp-card-pct{font-size:.7rem;color:var(--muted)}
+.resp-card-bar{height:3px;background:var(--border);border-radius:99px;margin-top:.6rem;overflow:hidden}
+.resp-card-bar-fill{height:100%;border-radius:99px;transition:width .4s}
+.resp-card-copy{width:100%;margin-top:.75rem;padding:.38rem;font-size:.72rem;border:1px solid var(--border);border-radius:7px;background:var(--surface2);cursor:pointer;color:var(--muted);font-family:var(--sans);transition:all .2s}
+.resp-card-copy:hover{border-color:var(--primary);color:var(--primary);background:#fff}
+
+/* LOADING / ERROR */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1rem}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-card{background:var(--surface);border:1px solid #fca5a5;border-radius:14px;padding:1.75rem 2rem;max-width:520px;width:90%}
+.error-card h3{color:var(--red);font-family:var(--serif);margin-bottom:.5rem}
+.error-card p{font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:.75rem}
+.error-card code{font-family:var(--mono);font-size:.72rem;background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--text)}
+.error-card ol{padding-left:1.2rem;font-size:.82rem;color:var(--muted);line-height:2}
+.error-card a{color:var(--primary);text-decoration:none}
+.error-card a:hover{text-decoration:underline}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .22s ease}
+.ro-banner{background:#f59e0b15;border:1px solid #f59e0b40;border-radius:9px;padding:.5rem 1rem;font-size:.75rem;color:#92400e;display:flex;align-items:center;gap:.5rem}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{width:190px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .content{padding:1rem}
+}
+@media(max-width:540px){
+  .app-shell{flex-direction:column}
+  .sidebar{width:100%;height:auto;flex-direction:row;overflow-x:auto}
+  .sb-logo,.sb-section,.sb-filters,.sb-bottom{display:none}
+  .sidebar::after{content:'Fatura Inteligente — Visualizador';font-family:var(--serif);color:#fff;font-size:.95rem;padding:.75rem 1.2rem;white-space:nowrap}
+  .main-panel{height:calc(100vh - 48px);overflow-y:auto}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <span class="sb-logo-title">Fatura Inteligente</span>
+      <span class="sb-logo-badge">v2</span>
+      <span class="sb-badge-ro">somente leitura</span>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Visualizar</span>
+      <button class="nav-item active" id="navDash" onclick="setView('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" id="navTabela" onclick="setView('tabela')">
+        <span class="nav-icon">📋</span> Tabela
+      </button>
+      <button class="nav-item" id="navResumos" onclick="setView('resumos')">
+        <span class="nav-icon">👥</span> Por Pessoa
+      </button>
+    </div>
+    <div class="sb-section" id="filterSection">
+      <span class="sb-label">Filtros</span>
+      <div class="sb-filters">
+        <label class="sf-label">Mês</label>
+        <select class="sf-select" id="monthSel" onchange="onMonthChange()"></select>
+        <label class="sf-label">Responsável</label>
+        <select class="sf-select" id="fResp" onchange="renderAll()">
+          <option value="">Todos</option>
+        </select>
+        <label class="sf-label">Cartão</label>
+        <select class="sf-select" id="fCartao" onchange="renderAll()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+    </div>
+    <div class="sb-bottom">
+      <div class="sb-status" id="sbStatus"></div>
+      <button class="nav-item" onclick="reloadData()" style="margin-bottom:.3rem">
+        <span class="nav-icon">🔄</span> Atualizar
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-panel" id="mainPanel">
+    <div id="app" class="content">
+      <div class="loading-screen">
+        <div class="spinner"></div>
+        <div style="font-size:.85rem;color:var(--muted)">Carregando dados da planilha…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SHEET_ID = '1uWLvOAjkqpi7QVblBYIiIiJiE8z8yrD0Qn43xcfOHuM';
+
+const RESPONSAVEIS = {
+  DA:{nome:'DONA ANA',cor:'#f59e0b'},
+  E:{nome:'ELSON',cor:'#60a5fa'},
+  H:{nome:'HOUSYVEL',cor:'#fb923c'},
+  L:{nome:'LUIZ ACIDENTE',cor:'#f472b6'},
+  MA:{nome:'MARCIA',cor:'#34d399'},
+  M:{nome:'MÃE',cor:'#94a3b8'},
+  P:{nome:'PAI',cor:'#6ee7b7'},
+  A:{nome:'THATIANNE',cor:'#fb7185'},
+};
+const REGRAS = {
+  C:{nome:'COMBUSTÍVEL',div:[{r:'E',p:34},{r:'A',p:66}]},
+  EMH:{nome:'ELSON+MARC+HOUSY',div:[{r:'E',p:34},{r:'MA',p:33},{r:'H',p:33}]},
+  EA:{nome:'ELSON+THATIANNE',div:[{r:'E',p:50},{r:'A',p:50}]},
+};
+const ML = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let allData = [];       // todas as compras de todos os meses
+let months = [];        // lista de meses disponíveis (YYYY-MM)
+let curMonth = '';
+let curView = 'dashboard';
+let charts = {};
+let lastUpdated = null;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v);
+const fmtN = v => new Intl.NumberFormat('pt-BR').format(v);
+function getRespColor(s) {
+  if(RESPONSAVEIS[s]) return RESPONSAVEIS[s].cor;
+  const m = {C:'#fcd34d',EMH:'#c4b5fd',EA:'#a78bfa'};
+  return m[s] || '#64748b';
+}
+function getRespLabel(s) {
+  if(!s || s==='PENDENTE') return '⚠ Pendente';
+  if(RESPONSAVEIS[s]) return RESPONSAVEIS[s].nome;
+  if(REGRAS[s]) return REGRAS[s].nome;
+  return s;
+}
+function fmtMes(ym) {
+  if(!ym) return '';
+  const [ano,mn] = ym.split('-');
+  return ML[parseInt(mn)-1] + '/' + ano;
+}
+function getOrigColor(o) {
+  return {regra:'#22C55E',historico:'#60a5fa',parcela:'#f59e0b',manual:'#fb7185'}[o]||'#94a3b8';
+}
+function sortData(arr, col, dir) {
+  return [...arr].sort((a,b)=>{
+    let va=a[col], vb=b[col];
+    if(col==='valor'){va=+va;vb=+vb;}
+    if(va===vb) return 0;
+    return (va<vb?-1:1)*(dir==='asc'?1:-1);
+  });
+}
+
+// ─── FETCH & PARSE ────────────────────────────────────────────────────────────
+function gvizUrl(sheet) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(sheet)}`;
+}
+
+function parseGviz(raw) {
+  // Strip JSONP wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  const match = raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
+  if(!match) throw new Error('Resposta inválida do Google Sheets');
+  const json = JSON.parse(match[1]);
+  if(json.status !== 'ok') {
+    throw new Error('Erro do Google Sheets: ' + (json.errors?.[0]?.detailed_message || json.status));
+  }
+  return json.table;
+}
+
+function tableToRows(table) {
+  const cols = table.cols.map(c => c.label.trim().toLowerCase());
+  return table.rows.map(row => {
+    const obj = {};
+    row.c && row.c.forEach((cell, i) => {
+      if(!cell) { obj[cols[i]] = null; return; }
+      // Para números: usar valor numérico diretamente; para datas e strings: usar formatado se disponível
+      const colType = table.cols[i].type;
+      if(colType === 'number') {
+        obj[cols[i]] = cell.v !== undefined && cell.v !== null ? cell.v : null;
+      } else {
+        obj[cols[i]] = cell.f !== undefined && cell.f !== null ? cell.f : cell.v;
+      }
+    });
+    return obj;
+  });
+}
+
+function parseMesRef(raw) {
+  // Pode vir como "Date(2026,4,1)" → "2026-05" ou já como "2026-05"
+  if(!raw) return '';
+  if(typeof raw === 'string' && raw.startsWith('Date(')) {
+    const m = raw.match(/Date\((\d+),(\d+),/);
+    if(m) return m[1] + '-' + String(+m[2]+1).padStart(2,'0');
+  }
+  return String(raw).slice(0,7); // "2026-05" ou formatado
+}
+
+function parseCompras(rows, sheetMes) {
+  return rows.map(r => {
+    // Valor já vem como número do gviz (type:number)
+    const valor = typeof r['valor'] === 'number' ? r['valor']
+      : parseFloat(String(r['valor']||'0').replace(/[R$\s]/g,'').replace(',','.')) || 0;
+    // Data: vem como "DD/MM" (formatted) ou "Date(...)"
+    let data = r['data'] || '';
+    if(typeof data === 'string' && data.startsWith('Date(')) {
+      const m = data.match(/Date\((\d+),(\d+),(\d+)\)/);
+      if(m) data = String(+m[3]).padStart(2,'0') + '/' + String(+m[2]+1).padStart(2,'0');
+    }
+    // Mês ref: preferir o da coluna; fallback = nome da aba
+    const mes_ref = parseMesRef(r['mês ref'] || r['mes ref'] || r['mês_ref']) || sheetMes || '';
+    return {
+      data,
+      descricao: r['descrição'] || r['descricao'] || '',
+      valor,
+      cartao: r['cartão'] || r['cartao'] || '',
+      responsavel: r['responsável'] || r['responsavel'] || '',
+      parcela_atual: r['parcela atual'] != null ? String(r['parcela atual']) : '',
+      total_parcelas: r['total parcelas'] != null ? String(r['total parcelas']) : '',
+      origem: (r['origem'] || '').toLowerCase(),
+      mes_ref,
+    };
+  }).filter(r => r.valor > 0);
+}
+
+// Gera lista de abas mensais dos últimos N meses
+function monthTabs(n = 24) {
+  const tabs = [];
+  const now = new Date();
+  for(let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    tabs.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return tabs;
+}
+
+async function fetchMonthSheet(sheetName) {
+  const url = gvizUrl(sheetName);
+  const res = await fetch(url);
+  if(!res.ok) return [];
+  const raw = await res.text();
+  try {
+    const table = parseGviz(raw);
+    if(!table.rows || !table.rows.length) return [];
+    return parseCompras(tableToRows(table), sheetName);
+  } catch(e) { return []; }
+}
+
+async function loadAllData() {
+  showLoading();
+  try {
+    const tabs = monthTabs(24);
+    // Busca todas as abas em paralelo
+    const results = await Promise.all(tabs.map(t => fetchMonthSheet(t)));
+    allData = results.flat();
+    // Descobrir meses disponíveis
+    const mesSet = new Set(allData.map(r => r.mes_ref).filter(Boolean));
+    months = [...mesSet].sort().reverse();
+    if(!months.length) throw new Error('Nenhuma compra encontrada nas abas mensais da planilha');
+    populateFilters();
+    curMonth = months[0];
+    document.getElementById('monthSel').value = curMonth;
+    lastUpdated = new Date();
+    renderAll();
+    updateStatus();
+  } catch(err) {
+    showError(err);
+  }
+}
+
+function reloadData() {
+  loadAllData();
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const mSel = document.getElementById('monthSel');
+  mSel.innerHTML = months.map(m => `<option value="${m}">${fmtMes(m)} (${m})</option>`).join('');
+
+  const resps = [...new Set(allData.map(r=>r.responsavel).filter(Boolean))].sort();
+  const rSel = document.getElementById('fResp');
+  rSel.innerHTML = '<option value="">Todos</option>' +
+    resps.map(r => `<option value="${r}">${getRespLabel(r)}</option>`).join('');
+
+  const cartoes = [...new Set(allData.map(r=>r.cartao).filter(Boolean))].sort();
+  const cSel = document.getElementById('fCartao');
+  cSel.innerHTML = '<option value="">Todos</option>' +
+    cartoes.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function onMonthChange() {
+  curMonth = document.getElementById('monthSel').value;
+  renderAll();
+}
+
+function getFiltered() {
+  const resp = document.getElementById('fResp')?.value || '';
+  const cartao = document.getElementById('fCartao')?.value || '';
+  return allData.filter(r =>
+    r.mes_ref === curMonth &&
+    (!resp || r.responsavel === resp) &&
+    (!cartao || r.cartao === cartao)
+  );
+}
+
+// ─── TOTAIS POR RESPONSÁVEL ───────────────────────────────────────────────────
+function calcTotais(purchases) {
+  const t = {};
+  purchases.forEach(p => {
+    const r = p.responsavel;
+    if(!r || r==='PENDENTE') return;
+    if(REGRAS[r]) {
+      REGRAS[r].div.forEach(({r:rr,p:pct}) => {
+        t[rr] = (t[rr]||0) + (p.valor*pct/100);
+      });
+    } else {
+      t[r] = (t[r]||0) + p.valor;
+    }
+  });
+  return t;
+}
+
+// ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
+function setView(v) {
+  curView = v;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const map = {dashboard:'navDash',tabela:'navTabela',resumos:'navResumos'};
+  document.getElementById(map[v])?.classList.add('active');
+  destroyCharts();
+  renderAll();
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try{c.destroy();}catch(e){} });
+  charts = {};
+}
+
+// ─── RENDER MAIN ──────────────────────────────────────────────────────────────
+function renderAll() {
+  const purchases = getFiltered();
+  if(curView === 'dashboard') renderDashboard(purchases);
+  else if(curView === 'tabela') renderTabela(purchases);
+  else if(curView === 'resumos') renderResumos(purchases);
+}
+
+function updateStatus() {
+  const el = document.getElementById('sbStatus');
+  if(!el) return;
+  const d = lastUpdated;
+  if(!d) return;
+  const h = String(d.getHours()).padStart(2,'0');
+  const m = String(d.getMinutes()).padStart(2,'0');
+  el.innerHTML = `<span>🟢 Dados ao vivo</span><span>Atualizado às ${h}:${m}</span>`;
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard(purchases) {
+  const total = purchases.reduce((s,p)=>s+p.valor,0);
+  const totais = calcTotais(purchases);
+  const pending = purchases.filter(p=>!p.responsavel||p.responsavel==='PENDENTE').length;
+  const sorted = Object.entries(totais).sort((a,b)=>b[1]-a[1]);
+  const mesLabel = fmtMes(curMonth);
+
+  document.getElementById('app').innerHTML = `
+  <div class="fade-in">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-sub">${mesLabel} · ${purchases.length} compras · ${fmt(total)}</div>
+      </div>
+      <div class="page-actions">
+        <span class="ro-banner">👁 Somente leitura — dados direto da planilha</span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card c-dark">
+        <div class="kpi-label">Total do Mês</div>
+        <div class="kpi-value">${fmt(total)}</div>
+        <div class="kpi-sub">${purchases.length} compras</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Atribuído</div>
+        <div class="kpi-value c-primary" style="color:var(--primary)">${fmt(purchases.filter(p=>p.responsavel&&p.responsavel!=='PENDENTE').reduce((s,p)=>s+p.valor,0))}</div>
+        <div class="kpi-sub">${purchases.filter(p=>p.responsavel&&p.responsavel!=='PENDENTE').length} itens</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Maior responsável</div>
+        <div class="kpi-value" style="color:${sorted[0]?getRespColor(sorted[0][0]):'var(--muted)'}">
+          ${sorted[0]?getRespLabel(sorted[0][0]):'—'}
+        </div>
+        <div class="kpi-sub">${sorted[0]?fmt(sorted[0][1]):''}</div>
+      </div>
+      <div class="kpi-card" style="${pending>0?'border-color:#fca5a5':''}">
+        <div class="kpi-label">Pendentes</div>
+        <div class="kpi-value" style="color:${pending>0?'var(--red)':'var(--green)'}">${pending}</div>
+        <div class="kpi-sub">${pending>0?'aguardando atribuição':'tudo atribuído ✓'}</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Gastos por Responsável</div>
+        <canvas id="cResp" height="180"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por Cartão</div>
+        <canvas id="cCartao" height="180"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card full" style="margin-bottom:1.1rem">
+      <div class="chart-title">Top 10 Estabelecimentos</div>
+      <canvas id="cDesc" height="160"></canvas>
+    </div>
+  </div>`;
+
+  // charts
+  setTimeout(() => {
+    Chart.defaults.color='#7C7C9C';
+    Chart.defaults.font.family="'DM Sans',sans-serif";
+    const grid='#E4E1F5';
+    const fmtTick=v=>'R$'+Math.round(v).toLocaleString('pt-BR');
+
+    // Resp bar
+    const e1=document.getElementById('cResp');
+    if(e1&&sorted.length){
+      charts.cResp=new Chart(e1,{type:'bar',data:{
+        labels:sorted.map(([r])=>getRespLabel(r)),
+        datasets:[{data:sorted.map(([,v])=>v),
+          backgroundColor:sorted.map(([r])=>getRespColor(r)+'cc'),
+          borderColor:sorted.map(([r])=>getRespColor(r)),
+          borderWidth:0,borderRadius:6}]},
+        options:{indexAxis:'y',responsive:true,
+          plugins:{legend:{display:false},datalabels:{display:false},
+            tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+          scales:{x:{ticks:{callback:fmtTick,maxTicksLimit:5,color:'#7C7C9C'},grid:{color:grid}},
+            y:{grid:{display:false},ticks:{color:'#1A1A2E',font:{size:11}}}}}});
+    }
+
+    // Cartao doughnut
+    const byCartao={};
+    purchases.forEach(p=>{byCartao[p.cartao]=(byCartao[p.cartao]||0)+p.valor;});
+    const cartaoE=Object.entries(byCartao).sort((a,b)=>b[1]-a[1]);
+    const PAL=['#2D2B8A','#E05252','#22C55E','#F4A0B0','#5B59D6','#3B82F6','#F59E0B','#A78BFA'];
+    const e2=document.getElementById('cCartao');
+    if(e2&&cartaoE.length){
+      charts.cCartao=new Chart(e2,{type:'doughnut',data:{
+        labels:cartaoE.map(([k])=>k),
+        datasets:[{data:cartaoE.map(([,v])=>v),backgroundColor:PAL,borderColor:'#FFF',borderWidth:2}]},
+        options:{responsive:true,plugins:{
+          legend:{position:'bottom',labels:{color:'#1A1A2E',font:{size:11},padding:12}},
+          datalabels:{display:false},
+          tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)}`}}}}});
+    }
+
+    // Top desc bar
+    const byDesc={};
+    purchases.forEach(p=>{
+      const k=p.descricao.toUpperCase().replace(/\s*\(\d+\/\d+\)/g,'').slice(0,28);
+      byDesc[k]=(byDesc[k]||0)+p.valor;
+    });
+    const topDesc=Object.entries(byDesc).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+    const e3=document.getElementById('cDesc');
+    if(e3&&topDesc.length){
+      charts.cDesc=new Chart(e3,{type:'bar',data:{
+        labels:topDesc.map(([k])=>k),
+        datasets:[{data:topDesc.map(([,v])=>v),backgroundColor:'#F4A0B080',borderColor:'#E05252',borderWidth:0,borderRadius:6}]},
+        options:{indexAxis:'y',responsive:true,
+          plugins:{legend:{display:false},datalabels:{display:false},
+            tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+          scales:{x:{ticks:{callback:fmtTick,maxTicksLimit:5,color:'#7C7C9C'},grid:{color:grid}},
+            y:{grid:{display:false},ticks:{color:'#1A1A2E',font:{size:10}}}}}});
+    }
+  },50);
+}
+
+// ─── TABELA ───────────────────────────────────────────────────────────────────
+let tblSort = {col:'data',dir:'asc'};
+let tblSearch = '';
+
+function renderTabela(purchases) {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="fade-in">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Tabela de Compras</h1>
+        <div class="page-sub">${fmtMes(curMonth)}</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input id="tSearch" type="text" placeholder="Buscar descrição…" value="${tblSearch}"
+            oninput="tblSearch=this.value;renderTabelaData()">
+        </div>
+        <select class="filter-sel" id="tOrigem" onchange="renderTabelaData()">
+          <option value="">Todas origens</option>
+          <option value="regra">Regra</option>
+          <option value="historico">Histórico</option>
+          <option value="parcela">Parcela</option>
+          <option value="manual">Manual</option>
+        </select>
+        <span class="table-count" id="tblCount"></span>
+      </div>
+      <div id="tblBody" style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="tblSortBy('data')">Data ${tblSort.col==='data'?(tblSort.dir==='asc'?'▲':'▼'):''}</th>
+              <th onclick="tblSortBy('descricao')">Descrição ${tblSort.col==='descricao'?(tblSort.dir==='asc'?'▲':'▼'):''}</th>
+              <th>Parc.</th>
+              <th onclick="tblSortBy('cartao')">Cartão ${tblSort.col==='cartao'?(tblSort.dir==='asc'?'▲':'▼'):''}</th>
+              <th onclick="tblSortBy('responsavel')">Responsável ${tblSort.col==='responsavel'?(tblSort.dir==='asc'?'▲':'▼'):''}</th>
+              <th>Orig.</th>
+              <th onclick="tblSortBy('valor')" style="text-align:right">Valor ${tblSort.col==='valor'?(tblSort.dir==='asc'?'▲':'▼'):''}</th>
+            </tr>
+          </thead>
+          <tbody id="tblRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+  renderTabelaData();
+}
+
+function tblSortBy(col) {
+  if(tblSort.col === col) tblSort.dir = tblSort.dir==='asc'?'desc':'asc';
+  else { tblSort.col=col; tblSort.dir='asc'; }
+  renderTabela(getFiltered());
+}
+
+function renderTabelaData() {
+  const origem = document.getElementById('tOrigem')?.value || '';
+  let data = getFiltered();
+  if(tblSearch) data = data.filter(r=>r.descricao.toLowerCase().includes(tblSearch.toLowerCase()));
+  if(origem) data = data.filter(r=>r.origem===origem);
+  data = sortData(data, tblSort.col, tblSort.dir);
+
+  document.getElementById('tblCount').textContent = `${data.length} itens · ${fmt(data.reduce((s,r)=>s+r.valor,0))}`;
+
+  const tbody = document.getElementById('tblRows');
+  if(!tbody) return;
+  tbody.innerHTML = data.map(r => {
+    const col = getRespColor(r.responsavel);
+    const isPend = !r.responsavel || r.responsavel==='PENDENTE';
+    return `<tr>
+      <td class="mono" style="color:var(--muted)">${r.data||'—'}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
+      <td>${r.parcela_atual&&r.total_parcelas?`<span class="parcela-badge">${r.parcela_atual}/${r.total_parcelas}</span>`:''}</td>
+      <td class="mono" style="font-size:.7rem;color:var(--muted)">${r.cartao}</td>
+      <td>
+        ${isPend
+          ? `<span style="color:var(--red);font-size:.75rem">⚠ Pendente</span>`
+          : `<span class="resp-chip" style="background:${col}18;color:${col}">
+              <span class="resp-dot" style="background:${col}"></span>${getRespLabel(r.responsavel)}
+             </span>`}
+      </td>
+      <td><span class="origem-dot" style="background:${getOrigColor(r.origem)}"></span><span style="font-size:.7rem;color:var(--muted)">${r.origem||'—'}</span></td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(r.valor)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── RESUMOS POR PESSOA ───────────────────────────────────────────────────────
+function renderResumos(purchases) {
+  const totais = calcTotais(purchases);
+  const totalGeral = Object.values(totais).reduce((s,v)=>s+v,0);
+  const sorted = Object.entries(totais).sort((a,b)=>b[1]-a[1]);
+  const maxVal = sorted[0]?.[1] || 1;
+
+  // Build per-person purchase list
+  const byResp = {};
+  purchases.forEach(p => {
+    const r = p.responsavel;
+    if(!r||r==='PENDENTE') return;
+    if(REGRAS[r]) {
+      REGRAS[r].div.forEach(({r:rr,p:pct}) => {
+        if(!byResp[rr]) byResp[rr]=[];
+        byResp[rr].push({...p,valor:p.valor*pct/100,pct});
+      });
+    } else {
+      if(!byResp[r]) byResp[r]=[];
+      byResp[r].push(p);
+    }
+  });
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="fade-in">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Resumo por Pessoa</h1>
+        <div class="page-sub">${fmtMes(curMonth)} · Total distribuído: ${fmt(totalGeral)}</div>
+      </div>
+    </div>
+    <div class="resp-grid">
+      ${sorted.map(([r,val]) => {
+        const col = getRespColor(r);
+        const pct = totalGeral>0?Math.round(val/totalGeral*100):0;
+        const items = byResp[r]||[];
+        const mesLabel = fmtMes(curMonth);
+        const msgLines = items.slice(0,10).map(i=>`  ${i.descricao.slice(0,26).padEnd(26,' ')} ${fmt(i.valor)}`).join('\n');
+        const msg = `*${getRespLabel(r)}* — ${mesLabel}\nTotal: *${fmt(val)}* (${pct}% do mês)\n\`\`\`\n${msgLines}${items.length>10?`\n  ... +${items.length-10} compras`:''}\n\`\`\``;
+        return `<div class="resp-card">
+          <div class="resp-card-header">
+            <div class="resp-card-dot" style="background:${col}"></div>
+            <div class="resp-card-name">${getRespLabel(r)}</div>
+          </div>
+          <div class="resp-card-total" style="color:${col}">${fmt(val)}</div>
+          <div class="resp-card-pct">${pct}% do total · ${items.length} compras</div>
+          <div class="resp-card-bar"><div class="resp-card-bar-fill" style="background:${col};width:${Math.round(val/maxVal*100)}%"></div></div>
+          <button class="resp-card-copy" onclick="copyMsg(this,'${btoa(unescape(encodeURIComponent(msg)))}')">📋 Copiar resumo para WhatsApp</button>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function copyMsg(btn, b64) {
+  const msg = decodeURIComponent(escape(atob(b64)));
+  navigator.clipboard.writeText(msg).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copiado!';
+    btn.style.color = 'var(--green)';
+    setTimeout(()=>{ btn.textContent=orig; btn.style.color=''; }, 2000);
+  }).catch(() => {
+    prompt('Copie o texto abaixo:', msg);
+  });
+}
+
+// ─── LOADING / ERROR ──────────────────────────────────────────────────────────
+function showLoading() {
+  destroyCharts();
+  document.getElementById('app').innerHTML = `
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      <div style="font-size:.85rem;color:var(--muted)">Carregando dados da planilha…</div>
+    </div>`;
+}
+
+function showError(err) {
+  destroyCharts();
+  document.getElementById('app').innerHTML = `
+    <div class="loading-screen">
+      <div class="error-card">
+        <h3>⚠ Não foi possível carregar os dados</h3>
+        <p>${err.message}</p>
+        <p>Para que este visualizador funcione, a planilha precisa estar com acesso público:</p>
+        <ol>
+          <li>Abra a planilha: <a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}" target="_blank">Fatura Inteligente — Banco de Dados</a></li>
+          <li>Clique em <strong>Compartilhar</strong> (canto superior direito)</li>
+          <li>Em <em>Acesso geral</em>, selecione <strong>"Qualquer pessoa com o link"</strong> → <strong>Leitor</strong></li>
+          <li>Salve e <button onclick="reloadData()" class="btn btn-primary" style="font-size:.75rem;padding:.3rem .7rem;display:inline">tente novamente</button></li>
+        </ol>
+      </div>
+    </div>`;
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+loadAllData();
+</script>
+</body>
+</html>

@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fatura Inteligente v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F0EEF9;
+  --sidebar:#2D2B8A;
+  --sidebar-hover:rgba(255,255,255,.08);
+  --sidebar-active:#FFFFFF;
+  --surface:#FFFFFF;
+  --surface2:#F5F3FC;
+  --border:#E4E1F5;
+  --primary:#2D2B8A;
+  --primary-lt:#5B59D6;
+  --red:#E05252;
+  --red-lt:#FEE2E2;
+  --green:#22C55E;
+  --green-lt:#DCFCE7;
+  --blue:#3B82F6;
+  --text:#1A1A2E;
+  --muted:#7C7C9C;
+  --card-shadow:0 2px 12px rgba(45,43,138,.08);
+  --mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--serif:'DM Serif Display',serif;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#C4BFEA;border-radius:99px}
+
+/* SHELL */
+.app-shell{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:225px;flex-shrink:0;background:var(--sidebar);border-right:none;display:flex;flex-direction:column;overflow-y:auto}
+.sb-logo{padding:1.5rem 1.2rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-logo-title{font-family:var(--serif);font-size:1.1rem;color:#fff;display:block;margin-bottom:.3rem}
+.sb-logo-badge{font-family:var(--mono);font-size:.58rem;background:rgba(255,255,255,.2);color:#fff;padding:2px 7px;border-radius:4px;letter-spacing:.08em}
+.sb-section{padding:.6rem 0}
+.sb-section+.sb-section{border-top:1px solid rgba(255,255,255,.08)}
+.sb-label{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:700;padding:0 1.2rem;margin-bottom:.3rem;display:block}
+.nav-item{display:flex;align-items:center;gap:.65rem;padding:.52rem 1rem;margin:0 .5rem;cursor:pointer;border:none;background:none;color:rgba(255,255,255,.65);font-family:var(--sans);font-size:.8rem;font-weight:500;width:calc(100% - 1rem);text-align:left;transition:all .15s;border-radius:8px;border:none}
+.nav-item:hover:not([disabled]){color:#fff;background:var(--sidebar-hover)}
+.nav-item.active{color:var(--primary);background:var(--sidebar-active);font-weight:600}
+.nav-item.active .nav-icon{filter:none}
+.nav-item[disabled]{opacity:.3;cursor:not-allowed}
+.nav-icon{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-family:var(--mono);font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:99px}
+.sb-filters{padding:.6rem 1.1rem}
+.sf-label{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);font-weight:600;margin-bottom:.28rem;display:block;margin-top:.55rem}
+.sf-label:first-child{margin-top:0}
+.sf-select{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:.38rem .6rem;border-radius:7px;font-size:.72rem;font-family:var(--mono);cursor:pointer;outline:none}
+.sf-select:focus{border-color:rgba(255,255,255,.4)}
+.sf-select option{background:var(--sidebar);color:#fff}
+.sb-bottom{margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding:.5rem 0}
+
+/* MAIN */
+.main-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.content{padding:1.75rem 2rem;flex:1}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.page-title{font-family:var(--serif);font-size:1.7rem;color:var(--text)}
+.page-sub{font-size:.78rem;color:var(--muted);margin-top:.2rem}
+.page-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+
+/* BUTTONS */
+.btn{border:none;cursor:pointer;font-family:var(--sans);font-weight:600;transition:all .2s;border-radius:9px;font-size:.8rem}
+.btn-primary{background:var(--primary);color:#fff;padding:.5rem 1.1rem}
+.btn-primary:hover{background:var(--primary-lt)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.5rem .9rem;box-shadow:var(--card-shadow)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.3rem;box-shadow:var(--card-shadow);position:relative}
+.kpi-label{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.5rem}
+.kpi-value{font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.kpi-card.c-primary .kpi-value{color:var(--primary)}
+.kpi-card.c-primary .kpi-label{color:var(--primary-lt)}
+.kpi-card.c-green .kpi-value{color:var(--green)}
+.kpi-card.c-red .kpi-value{color:var(--red)}
+.kpi-card.c-dark{background:var(--primary);border-color:var(--primary)}
+.kpi-card.c-dark .kpi-label{color:rgba(255,255,255,.6)}
+.kpi-card.c-dark .kpi-value{color:#fff;font-size:1.15rem}
+.kpi-card.c-dark .kpi-sub{color:rgba(255,255,255,.5)}
+.kpi-sub{font-size:.68rem;color:var(--muted)}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:3fr 2fr;gap:1.1rem;margin-bottom:1.1rem}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.4rem;box-shadow:var(--card-shadow)}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.875rem}
+
+/* TABLE */
+.tb-toolbar{display:flex;gap:.5rem;margin-bottom:.875rem;flex-wrap:wrap;align-items:center}
+.tb-search{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:.42rem .8rem;font-size:.78rem;outline:none;flex:1;min-width:160px;box-shadow:var(--card-shadow)}
+.tb-search::placeholder{color:var(--muted)}
+.tb-sel{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:.42rem .65rem;font-size:.72rem;cursor:pointer;outline:none;font-family:var(--mono);box-shadow:var(--card-shadow)}
+.tb-count{margin-left:auto;font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.pending-badge{background:var(--red-lt);color:var(--red);border:1px solid rgba(224,82,82,.25);border-radius:99px;padding:2px 9px;font-size:.7rem;font-family:var(--mono);cursor:pointer;user-select:none;transition:all .18s}
+.pending-badge:hover{background:rgba(224,82,82,.2)}
+.pending-badge.nav-mode{background:rgba(45,43,138,.1);color:var(--primary);border-color:rgba(45,43,138,.25)}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);box-shadow:var(--card-shadow)}
+table{width:100%;border-collapse:collapse;font-size:.77rem}
+thead th{padding:.6rem .9rem;text-align:left;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;background:var(--surface2)}
+thead th:hover{color:var(--primary)}
+tbody tr{transition:background .1s;background:var(--surface)}
+tbody tr:nth-child(even){background:var(--surface2)}
+tbody tr:hover{background:#EBE8FA}
+tbody td{padding:.58rem .9rem;vertical-align:middle;border-bottom:1px solid var(--border)}
+.td-date{font-family:var(--mono);color:var(--muted);white-space:nowrap;font-size:.68rem}
+.td-desc{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-parcela,.td-cartao{font-family:var(--mono);font-size:.68rem;color:var(--muted)}
+.td-valor{font-family:var(--mono);font-weight:600;text-align:right;white-space:nowrap;color:var(--primary)}
+.resp-select{background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:2px 5px;font-size:.68rem;font-family:var(--mono);cursor:pointer;outline:none;max-width:130px}
+.origem-pill{display:inline-block;font-size:.57rem;padding:1px 6px;border-radius:99px;letter-spacing:.05em}
+.origem-regra{background:rgba(91,89,214,.15);color:var(--primary-lt)}
+.origem-historico{background:rgba(59,130,246,.12);color:var(--blue)}
+.origem-parcela{background:rgba(34,197,94,.12);color:var(--green)}
+.origem-manual{background:var(--red-lt);color:var(--red)}
+.subtotal-row td{background:var(--surface2);font-weight:700;border-top:2px solid var(--border);padding:.75rem .9rem}
+.highlight-row td{background:rgba(45,43,138,.06)!important;outline:2px solid var(--primary);outline-offset:-1px}
+
+/* UPLOAD */
+.upload-wrap{max-width:640px;margin:0 auto}
+.upload-zone{border:2px dashed var(--border);border-radius:18px;padding:2.5rem 2rem;text-align:center;cursor:pointer;transition:all .22s;background:var(--surface);box-shadow:var(--card-shadow)}
+.upload-zone.drag,.upload-zone:hover{border-color:var(--primary);background:#EBE8FA}
+.upload-zone .icon{font-size:2.2rem;margin-bottom:.875rem;opacity:.7}
+.upload-zone h3{font-family:var(--serif);font-size:1.3rem;margin-bottom:.4rem;color:var(--text)}
+.upload-zone p{font-size:.82rem;color:var(--muted);margin-bottom:1.25rem}
+.upload-btn-lbl{display:inline-block;background:var(--primary);color:#fff;font-weight:700;font-size:.82rem;padding:.55rem 1.3rem;border-radius:9px;cursor:pointer;transition:all .2s}
+.upload-btn-lbl:hover{background:var(--primary-lt)}
+input[type=file]{display:none}
+.file-list{margin-top:1.25rem;display:flex;flex-direction:column;gap:.65rem}
+.file-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.875rem 1.1rem;display:flex;align-items:center;gap:.875rem;box-shadow:var(--card-shadow)}
+.file-icon{font-size:1.3rem;flex-shrink:0}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-family:var(--mono);font-size:.66rem;color:var(--muted);margin-top:1px}
+.card-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.7rem;padding:.28rem .55rem;border-radius:7px;cursor:pointer;outline:none;flex-shrink:0}
+.file-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.95rem;padding:.2rem;transition:color .18s}
+.file-remove:hover{color:var(--red)}
+.process-btn{width:100%;margin-top:1.25rem;padding:.875rem;background:var(--primary);border:none;border-radius:12px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;transition:all .22s}
+.process-btn:hover{background:var(--primary-lt);transform:translateY(-1px);box-shadow:0 8px 24px rgba(45,43,138,.3)}
+.process-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.proc-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:.75rem;box-shadow:var(--card-shadow)}
+.proc-status{display:flex;align-items:center;gap:.65rem;margin-bottom:.65rem}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar{height:3px;background:var(--border);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-lt));border-radius:99px;transition:width .4s}
+
+/* CONFIG */
+.cfg-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem;margin-bottom:1.1rem;box-shadow:var(--card-shadow)}
+.cfg-title{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.875rem}
+.cfg-row{display:flex;gap:.65rem;align-items:center}
+.cfg-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:.55rem .9rem;font-size:.78rem;font-family:var(--mono);outline:none}
+.cfg-input:focus{border-color:var(--primary)}
+.cfg-input::placeholder{color:var(--muted)}
+.cartao-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem}
+.cartao-tag{display:inline-flex;align-items:center;gap:.35rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.25rem .65rem;font-family:var(--mono);font-size:.68rem;color:var(--text)}
+.cartao-rm{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;line-height:1;padding:0;transition:color .15s}
+.cartao-rm:hover{color:var(--red)}
+
+/* MENSAGENS */
+.msg-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:.75rem;overflow:hidden;box-shadow:var(--card-shadow)}
+.msg-card-head{display:flex;justify-content:space-between;align-items:center;padding:.65rem 1.1rem;border-bottom:1px solid var(--border);background:var(--surface2)}
+.msg-pre{font-family:var(--mono);font-size:.7rem;color:var(--text);padding:.875rem 1.1rem;white-space:pre-wrap;line-height:1.7;background:var(--surface);margin:0}
+.msg-copy{width:100%;padding:.5rem;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:.72rem;cursor:pointer;transition:all .18s;font-family:var(--sans)}
+.msg-copy:hover{background:rgba(45,43,138,.06);color:var(--primary)}
+
+/* PERSON CARDS */
+.person-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;margin-top:1.25rem}
+.person-card{background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:var(--card-shadow)}
+.person-card-hdr{padding:.8rem 1.1rem;display:flex;align-items:center;gap:.65rem;border-bottom:1px solid var(--border)}
+.person-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.65rem;font-weight:700;flex-shrink:0}
+.person-name{font-weight:600;font-size:.82rem;color:var(--text)}
+.person-total{font-family:var(--mono);font-size:.9rem;font-weight:700;margin-left:auto}
+.person-items{padding:.5rem 1.1rem 0}
+.person-item{display:flex;justify-content:space-between;align-items:baseline;padding:.28rem 0;border-bottom:1px solid var(--border);font-size:.74rem}
+.person-item:last-child{border:none}
+.person-item-date{font-family:var(--mono);font-size:.65rem;color:var(--muted);flex-shrink:0;width:32px}
+.person-item-desc{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.person-item-val{font-family:var(--mono);font-size:.7rem;flex-shrink:0;color:var(--primary)}
+.person-cartao-hdr{display:flex;align-items:center;gap:.3rem;font-size:.65rem;font-family:var(--mono);color:var(--primary);font-weight:600;padding:.45rem 1.1rem .2rem;background:rgba(45,43,138,.04);border-top:1px solid var(--border);letter-spacing:.04em}
+.person-cartao-hdr:first-child{border-top:none}
+.person-copy-btn{width:calc(100% - 2.2rem);margin:.75rem 1.1rem;padding:.42rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:.7rem;cursor:pointer;transition:all .18s}
+.person-copy-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,.5);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:1.75rem;width:min(400px,90vw);box-shadow:0 24px 64px rgba(45,43,138,.15)}
+.modal h3{font-family:var(--serif);font-size:1.3rem;margin-bottom:.35rem;color:var(--text)}
+.modal p{font-size:.8rem;color:var(--muted);margin-bottom:1.25rem}
+.modal select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:.55rem .9rem;border-radius:9px;font-size:.85rem;font-family:var(--mono);margin-bottom:.75rem;outline:none}
+.modal select:focus{border-color:var(--primary)}
+.modal-btns{display:flex;gap:.65rem}
+.modal-err{color:var(--red);font-size:.74rem;margin-top:.35rem;min-height:1em}
+
+/* EMPTY */
+.empty{text-align:center;padding:4rem 2rem;max-width:380px;margin:0 auto}
+.empty-icon{font-size:2.8rem;margin-bottom:.875rem;opacity:.4}
+.empty-title{font-family:var(--serif);font-size:1.4rem;margin-bottom:.4rem;color:var(--text)}
+.empty-sub{font-size:.82rem;color:var(--muted);margin-bottom:1.25rem}
+
+/* SUMMARY CARDS (dashboard totais) */
+.summary-row{display:flex;gap:.875rem;flex-wrap:wrap;margin-bottom:1.25rem}
+.summary-chip{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.55rem 1rem;display:flex;align-items:center;gap:.5rem;font-size:.78rem}
+.summary-chip-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.summary-chip-name{color:var(--muted);font-size:.72rem}
+.summary-chip-val{font-family:var(--mono);font-weight:600;font-size:.78rem}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .22s ease}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 1.5s ease infinite}
+
+/* PROJEÇÃO */
+.proj-bar-wrap{height:3px;background:var(--border);border-radius:99px;margin-top:4px;width:56px;overflow:hidden;display:inline-block}
+.proj-bar-fill{height:3px;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--primary-lt))}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+const RESPONSAVEIS={
+  DA:{nome:'DONA ANA',cor:'#f59e0b'},E:{nome:'ELSON',cor:'#60a5fa'},
+  H:{nome:'HOUSYVEL',cor:'#fb923c'},L:{nome:'LUIZ ACIDENTE',cor:'#f472b6'},
+  MA:{nome:'MARCIA',cor:'#34d399'},M:{nome:'MÃE',cor:'#94a3b8'},
+  P:{nome:'PAI',cor:'#6ee7b7'},A:{nome:'THATIANNE',cor:'#fb7185'},
+};
+const REGRAS={
+  C:{nome:'COMBUSTÍVEL',div:[{r:'E',p:34},{r:'A',p:66}]},
+  EMH:{nome:'ELSON+MARC+HOUSY',div:[{r:'E',p:34},{r:'MA',p:33},{r:'H',p:33}]},
+  EA:{nome:'ELSON+THATIANNE',div:[{r:'E',p:50},{r:'A',p:50}]},
+};
+const CARTOES_SEED=['ELO CAIXA','VISA CAIXA','MASTERCARD','AMEX','AMAZON','MERCADO PAGO','BTG'];
+function getCartoes(){try{const s=localStorage.getItem('cartoes');return s?JSON.parse(s):[...CARTOES_SEED];}catch(e){return[...CARTOES_SEED];}}
+function saveCartoes(l){localStorage.setItem('cartoes',JSON.stringify(l));}
+
+const HIST={
+  'UBER':['EA'],'UBER* TRIP':['EA'],'DL*UBERRIDES':['EA'],'UBERRIDES':['EA'],
+  'UBER *TRIP HELP.UBER.COM':['EA'],'UBER * PENDING':['EA'],
+  'PANETUTTI':['EA'],'UNICOMPRA':['EA'],'PG IHM COMERCIO INTEL':['EA'],
+  'AMAZON BR':['EA'],'DROGASIL':['EA'],'CRIAR E RECREAR':['EA'],
+  'FARMACIA PERMANENTE':['EA'],'PAGUE MENOS':['EA'],'RDSAUDE ONLINE':['EA'],
+  'REDELRLTDA':['E'],'NBHOTEIS':['EA'],'RENOVADORA OK LTDA':['EA'],
+  'PG INSTITUTO RANGEL D':['A'],'JV ACOUGUE NOVO BOI LT':['EA'],
+  'APPLECOMBILL':['E'],'FELICIA':['EA'],'SELECAO NATURAL CO':['E'],
+  'HOSP MEMORIAL ARTHUR R':['EA'],'P S ADMINISTRADORA':['EA'],
+  'KIWIFY':['E'],'IFOOD':['EA'],'IFD*IFOOD':['EA'],'IFD IFOOD':['EA'],
+  'BAMBULABLU':['EA'],'MUNDO SAM':['L'],'ORTOBOM':['DA'],
+  'AUTO POSTO':['C'],'POSTO FC':['C'],'PETROX':['C'],'REDE PRESIDENTE':['C'],
+  'MEDRADIUS':['DA'],'REDE PRIMAVERA':['DA'],
+  'LASERELETRO':['EA'],'MERCADOLIVRE':['EA'],'LOCALIZA':['EA'],
+  'WORLD TENNIS':['M'],'LOJAS RENNER':['M'],'NOBRE E GODOY':['M'],'COSMETICOS E CIA':['M'],
+  'TECNICA HOSPITALAR':['A'],'ZELIA CABELEIREIRA':['A'],'PDV NOSSO':['A'],
+  'COMIDA DIVINA':['A'],'RUCA':['A'],'LINA HEALTHY FOOD':['A'],'MR SHAKE':['A'],
+  'LLCURSO':['A'],'INSTITUTOSIN':['A'],'LPCMFOODPONTA':['A'],'CANVA':['A'],
+  'PG HAPPY CODE':['EA'],'TRADIO':['EA'],'BISTRO':['EA'],'ADIDAS':['EA'],
+  'SO UNIFORMES':['EA'],'MEC AUTOPARTES':['EA'],'CHURRAS TEMPERO':['EA'],
+  'SHOPEE':['EA'],'AMAZON MARKETPLACE':['EA'],'NETFLIX':['EA'],'NETFLIX.COM':['EA'],
+  'DM HOSTINGERCOMB':['E'],'HOSTINGER':['E'],'ADAPTAORG':['E'],'AUTOARDUINO':['E'],
+  'CURSOPLACAAUTO':['E'],'GOOGLE ONE':['E'],'AMAZON AD FREE':['EA'],
+  'AMAZON PRIME':['EA'],'AMAZONPRIMEBR':['EA'],'CARTAO DE TODOS':['P'],
+  'ALLPARK':['EA'],'HMA LOPES BRAGA':['EA'],'PALATO':['EA'],'SUPERMERCADO PALATO':['EA'],
+  'PAGUE MENOSA':['E'],'MP ACAIARACAJUDE':['E'],'MP BARRACA':['E'],
+  'IFD DANILON':['E'],'IFD 55283336':['E'],'IFD JACKELINE':['E'],
+  'IFD M J CALHEIROS':['E'],'IFD M A C L':['E'],'IFD 30585876':['E'],
+  'IFD SAMIA':['E'],'IFD ALL COOK':['E'],'MERCADOLIVRE 7PRODUTOS':['E'],
+  'AMAZON SERVICOS':['EA'],'BRASIL PARALELO':['E'],'YELUMSEG':['EA'],
+  'FARMACIAS PA':['EA'],'PANIFICACAO':['EA'],'SUPER PIZZA':['EA'],
+  'AMARELINHA':['EA'],'HNA OBOTICARIO':['EA'],'FABRICA DE BOLOS':['EA'],
+  'MALWEE KIDS':['EA'],'MP GUSTAVOHOTIFRUTI':['EA'],'FIRST CLASS':['EA'],
+  'RUSTIK EXPRESS':['EA'],'CONVENIENCIAPRAIA':['EA'],'LIMOLANCHES':['EA'],
+  'DROGALIMA':['EA'],'LANCHONETE BOM SABOR':['EA'],'SO PILHAS':['EA'],
+  'ARACAJU ADM':['EA'],'MELIMAIS':['EA'],'LOTERIASONLINE':['E'],
+};
+
+// ─── SESSION ──────────────────────────────────────────────────────────────────
+function saveSession(){try{localStorage.setItem('fi_session',JSON.stringify({purchases:state.purchases,month:state.month,ts:Date.now()}));}catch(e){}}
+function loadSession(){try{const r=localStorage.getItem('fi_session');if(!r)return null;const s=JSON.parse(r);return s.purchases&&s.purchases.length?s:null;}catch(e){return null;}}
+function clearSession(){localStorage.removeItem('fi_session');}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const _saved=loadSession();
+let state={
+  view:_saved?'dashboard':'upload',
+  uploadStep:1,
+  month:_saved?_saved.month:new Date().toISOString().slice(0,7),
+  files:[],purchases:_saved?_saved.purchases:[],processing:[],
+  sheetsUrl:localStorage.getItem('sheetsUrl')||'',
+  filter:{busca:'',resp:'Todos',cartao:'Todos',origem:'Todos'},
+  sort:{col:'data',dir:'asc'},
+  saving:false,dragging:false,
+  pendingCursor:0,highlightId:null,
+  histLoading:false,histErro:'',showHistModal:false,
+};
+function setState(u){state={...state,...u};render();}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v);
+const uid=()=>Math.random().toString(36).slice(2,9);
+function normalizar(d){return d.toUpperCase().replace(/\s*\(\d+\/\d+\)/g,'').replace(/\s+\d+\/\d+\s*$/g,'').replace(/\s*PARC\d+/gi,'').replace(/\*+/g,' ').replace(/\s+/g,' ').trim().slice(0,40);}
+function extractParcela(d){const m=d.match(/\((\d+)\/(\d+)\)/)||d.match(/(\d+)\/(\d+)\s*$/);return m?{atual:parseInt(m[1]),total:parseInt(m[2])}:null;}
+function findResp(d){const n=normalizar(d);for(const[k,v]of Object.entries(HIST)){if(n.includes(k)||k.includes(n.split(' ')[0]))return{resp:v[0],origem:'historico'};}return{resp:null,origem:'manual'};}
+function detectCartao(f){const c=getCartoes();const u=f.toUpperCase().replace(/[_\-.]/g,' ');for(const x of c){if(u.includes(x))return x;}return c[0]||CARTOES_SEED[0];}
+function getRespColor(s){if(RESPONSAVEIS[s])return RESPONSAVEIS[s].cor;const m={C:'#fcd34d',EMH:'#c4b5fd',EA:'#a78bfa'};return m[s]||'#64748b';}
+function getRespLabel(s){if(!s)return'—';if(RESPONSAVEIS[s])return RESPONSAVEIS[s].nome;if(REGRAS[s])return REGRAS[s].nome;return s;}
+// Remove cidade do final da descrição (ex: "WORLD TENNIS MACEIO" → "WORLD TENNIS")
+function limparDesc(d){
+  if(!d)return d;
+  let s=d.trim();
+  // Remove sigla de estado no final: " SE", " AL", " SP", etc.
+  s=s.replace(/\s+(?:AC|AL|AM|AP|BA|CE|DF|ES|GO|MA|MG|MS|MT|PA|PB|PE|PI|PR|RJ|RN|RO|RR|RS|SC|SE|SP|TO)\s*$/,'').trim();
+  // Remove a última palavra se parecer cidade:
+  // toda em maiúsculas, 4+ chars, sem dígitos, não é um termo comercial/de produto
+  const MANTER=new Set('LTDA EIRELI MEI SA CIA EPP MARKETPLACE MARKET STORE SHOP PRIME PLUS NET MAX GOLD SUPER MINI MEGA TECH BRASIL BRAZIL ONLINE EXPRESS FREE PRO TOP FLEX MOTO BIKE FARM CAFE FOOD PARK FAST VITA VIDA REAL OPEN STAR CITY CLUB HOME KIDS BABY ARTE CASA RICO TENNIS SOCCER SPORTS GAMES BEAUTY SAUDE BELEZA MODAS MODA HOTEL MOTEL RESORT POUSADA HOSTEL GRILL PIZZA BURGER SUSHI ACAI LOJA LOJAS CENTER CENTRO AUTO TENIS GYM FITNESS HAIR SPA SALAO BAZAR OUTLET DROGARIA FARMACIA HOSPITAL CLINICA POSTO SUPERMERCADO PADARIA'.split(' '));
+  const p=s.split(/\s+/);
+  if(p.length>1){
+    const ult=p[p.length-1];
+    if(ult.length>=4&&/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+$/.test(ult)&&!MANTER.has(ult)){
+      p.pop();s=p.join(' ');
+    }
+  }
+  return s.trim();
+}
+
+function fmtData(d){
+  if(!d)return'--/--';
+  const s=String(d).trim();
+  if(/^\d{2}\/\d{2}$/.test(s))return s;           // já DD/MM
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))                // YYYY-MM-DD
+    return s.slice(8,10)+'/'+s.slice(5,7);
+  try{const dt=new Date(d);if(!isNaN(dt)){         // Date object ou string longa
+    return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
+  }}catch(e){}
+  return s.slice(0,5);
+}
+
+// ─── COMPUTED ─────────────────────────────────────────────────────────────────
+function getFiltered(){
+  const{busca,resp,cartao,origem}=state.filter;const{col,dir}=state.sort;
+  return state.purchases
+    .filter(p=>!busca||p.descricao.toLowerCase().includes(busca.toLowerCase()))
+    .filter(p=>resp==='Todos'||p.responsavel===resp)
+    .filter(p=>cartao==='Todos'||p.cartao===cartao)
+    .filter(p=>origem==='Todos'||p.origem===origem)
+    .sort((a,b)=>{let va=a[col],vb=b[col];if(col==='valor'){va=+va;vb=+vb;}return va<vb?(dir==='asc'?-1:1):va>vb?(dir==='asc'?1:-1):0;});
+}
+function getTotais(){
+  const t={};
+  state.purchases.forEach(p=>{const r=p.responsavel;if(!r)return;if(REGRAS[r])REGRAS[r].div.forEach(({r:rr,p:pct})=>{t[rr]=(t[rr]||0)+(p.valor*pct/100);});else t[r]=(t[r]||0)+p.valor;});
+  return t;
+}
+function getSummaries(){
+  const s={};
+  state.purchases.forEach(p=>{
+    const r=p.responsavel;
+    if(!r){if(!s._pending)s._pending={items:[],total:0};s._pending.items.push(p);s._pending.total+=p.valor;return;}
+    if(REGRAS[r]){REGRAS[r].div.forEach(({r:rr,p:pct})=>{if(!s[rr])s[rr]={items:[],total:0};const val=p.valor*pct/100;s[rr].items.push({...p,valor:val,pct,regra:r});s[rr].total+=val;});}
+    else{if(!s[r])s[r]={items:[],total:0};s[r].items.push(p);s[r].total+=p.valor;}
+  });
+  return s;
+}
+
+// ─── PROJEÇÃO ─────────────────────────────────────────────────────────────────
+function getProjecao(){
+  const ML=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function fmtM(ym){const[a,mn]=ym.split('-');return ML[parseInt(mn)-1]+'/'+a.slice(2);}
+  const parceladas=state.purchases.filter(p=>p.parcela&&p.parcela.total>p.parcela.atual);
+  const[ano,mn]=state.month.split('-').map(Number);
+  const meses=[];
+  for(let i=1;i<=12;i++){
+    const d=new Date(ano,mn-1+i,1);
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    meses.push({mes:key,label:fmtM(key),total:0,items:[]});
+  }
+  parceladas.forEach(p=>{
+    const rest=p.parcela.total-p.parcela.atual;
+    for(let i=0;i<rest&&i<12;i++){meses[i].total+=p.valor;meses[i].items.push({...p,parcelaProjetada:p.parcela.atual+i+1});}
+  });
+  const totalProjetado=meses.reduce((s,m)=>s+m.total,0);
+  const maxMes=meses.reduce((best,m)=>m.total>best.total?m:best,meses[0]);
+  let maxRest=0;
+  parceladas.forEach(p=>{const r=p.parcela.total-p.parcela.atual;if(r>maxRest)maxRest=r;});
+  let quitacao='—';
+  if(maxRest>0){const d=new Date(ano,mn-1+maxRest,1);quitacao=ML[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);}
+  return{meses,parceladas,totalProjetado,maxMes,quitacao};
+}
+
+// ─── EXTRACT PDF ──────────────────────────────────────────────────────────────
+async function extractPDF(file,cartao){
+  const fd=new FormData();fd.append('pdf',file);fd.append('cartao',cartao);
+  const r=await fetch('http://localhost:3001/processar',{method:'POST',body:fd});
+  if(!r.ok)throw new Error(`Servidor retornou ${r.status}`);
+  const d=await r.json();
+  if(!d.ok)throw new Error(d.erro||'Erro desconhecido');
+  const mesRef=d.mes_ref||null;
+  const purchases=d.compras.map(item=>{
+    const parcela=item.parcela_info?{atual:parseInt(item.parcela_info.split('/')[0]),total:parseInt(item.parcela_info.split('/')[1])}:extractParcela(item.descricao);
+    const{resp:r2,origem}=findResp(item.descricao);
+    // cada compra carrega o mes_ref da sua propria fatura
+    return{id:uid(),data:item.data,descricao:item.descricao,valor:parseFloat(item.valor),cartao,parcela,responsavel:r2,origem:r2?origem:'manual',mes_ref:mesRef};
+  });
+  return{purchases,mes_ref:mesRef};
+}
+async function processFiles(){
+  const procs=state.files.map(f=>({id:f.id,name:f.file.name,cartao:f.cartao,status:'waiting',count:0,error:null}));
+  setState({uploadStep:2,processing:procs,purchases:[]});
+  let all=[];
+  let mesRefDetectado=null;
+  for(let i=0;i<state.files.length;i++){
+    const f=state.files[i];
+    const p=[...state.processing];p[i]={...p[i],status:'processing'};setState({processing:p});
+    try{
+      const resultado=await extractPDF(f.file,f.cartao);
+      const ps=resultado.purchases;
+      if(!mesRefDetectado&&resultado.mes_ref)mesRefDetectado=resultado.mes_ref;
+      all=[...all,...ps];
+      const u=[...state.processing];u[i]={...u[i],status:'done',count:ps.length};
+      setState({processing:u,purchases:all});
+      saveSession();
+    }catch(err){
+      const u=[...state.processing];u[i]={...u[i],status:'error',error:err.message};
+      setState({processing:u});
+    }
+  }
+  // Se o Claude detectou o mes de referencia pelo vencimento da fatura, usa ele
+  if(mesRefDetectado){
+    console.log('[FaturaInteligente] mes_ref detectado pelo vencimento:',mesRefDetectado);
+    setState({month:mesRefDetectado});
+    saveSession();
+  }
+  setTimeout(()=>setState({view:'dashboard',uploadStep:1}),900);
+}
+
+// ─── SHEETS ───────────────────────────────────────────────────────────────────
+async function saveToSheets(){
+  if(!state.sheetsUrl){alert('Configure a URL do Apps Script em Configurações.');return;}
+  setState({saving:true});
+  try{
+    // Agrupa compras pelo mes_ref de cada uma (pode haver maio + junho juntos)
+    const grupos={};
+    state.purchases.forEach(p=>{
+      const mesRef=p.mes_ref||state.month;
+      if(!grupos[mesRef])grupos[mesRef]=[];
+      grupos[mesRef].push(p);
+    });
+    const meses=Object.keys(grupos);
+    for(const mesRef of meses){
+      const compras=grupos[mesRef];
+      await fetch(state.sheetsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({mes_ref:mesRef,compras:compras.map(p=>({
+          data:p.data,descricao:p.descricao,valor:p.valor,cartao:p.cartao,
+          responsavel:p.responsavel||'PENDENTE',
+          parcela_atual:p.parcela?.atual||'',total_parcelas:p.parcela?.total||'',
+          origem:p.origem,mes_ref:mesRef,
+        }))})
+      });
+      console.log('[FaturaInteligente] Salvo no Sheets:',mesRef,'—',compras.length,'compras');
+    }
+    setState({saving:false});
+    alert('Salvo com sucesso!'+(meses.length>1?'\n('+meses.join(' + ')+')':''));
+  }catch(err){setState({saving:false});alert('Erro: '+err.message);}
+}
+async function fetchHistorico(mesRef){
+  setState({histLoading:true,histErro:''});
+  try{
+    const r=await fetch(state.sheetsUrl+'?mes_ref='+encodeURIComponent(mesRef));
+    if(!r.ok)throw new Error('Servidor retornou '+r.status);
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.erro||'Erro desconhecido');
+    if(!d.compras.length)throw new Error('Nenhuma compra encontrada para '+mesRef);
+    const purchases=d.compras.map(c=>({
+      id:uid(),data:c.data,descricao:c.descricao,valor:parseFloat(c.valor)||0,cartao:c.cartao,
+      responsavel:c.responsavel&&c.responsavel!=='PENDENTE'?c.responsavel:null,
+      parcela:c.parcela_atual&&c.total_parcelas?{atual:parseInt(c.parcela_atual),total:parseInt(c.total_parcelas)}:null,
+      origem:c.origem||'historico',
+    }));
+    setState({purchases,month:mesRef,showHistModal:false,histLoading:false,view:'dashboard',
+      filter:{busca:'',resp:'Todos',cartao:'Todos',origem:'Todos'}});
+    saveSession();
+  }catch(err){setState({histLoading:false,histErro:err.message});}
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+var _charts={};
+function destroyChart(id){if(_charts[id]){_charts[id].destroy();delete _charts[id];}}
+function initCharts(){
+  if(!state.purchases.length||typeof Chart==='undefined')return;
+  if(state.view==='projecao'){
+    const{meses}=getProjecao();
+    destroyChart('cProjecao');
+    const ep=document.getElementById('cProjecao');
+    if(ep&&meses.some(m=>m.total>0)){
+      const fmtTk=v=>v>0?'R$'+Math.round(v).toLocaleString('pt-BR'):'';
+      _charts.cProjecao=new Chart(ep,{type:'bar',data:{labels:meses.map(m=>m.label),datasets:[{data:meses.map(m=>m.total),backgroundColor:meses.map(m=>m.total>0?'#5B59D6cc':'#E4E1F5'),borderWidth:0,borderRadius:8}]},options:{responsive:true,layout:{padding:{top:28}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',formatter:fmtTk,color:'#2D2B8A',font:{family:"'IBM Plex Mono',monospace",size:10,weight:'600'}},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},scales:{x:{grid:{display:false},ticks:{color:'#7C7C9C',font:{size:11}}},y:{ticks:{callback:v=>'R$'+Math.round(v).toLocaleString('pt-BR'),maxTicksLimit:5,color:'#7C7C9C'},grid:{color:'#E4E1F5'}}}}});
+    }
+    return;
+  }
+  if(state.view!=='dashboard')return;
+  Chart.defaults.color='#7C7C9C';
+  Chart.defaults.font.family="'DM Sans',sans-serif";
+  const grid='#E4E1F5';
+  const fmtTick=v=>'R$'+Math.round(v).toLocaleString('pt-BR');
+  const totais=getTotais();
+  const respE=Object.entries(totais).sort((a,b)=>b[1]-a[1]);
+  const byCartao={};state.purchases.forEach(p=>{byCartao[p.cartao]=(byCartao[p.cartao]||0)+p.valor;});
+  const cartaoE=Object.entries(byCartao).sort((a,b)=>b[1]-a[1]);
+  const byDesc={};state.purchases.forEach(p=>{const k=normalizar(p.descricao).slice(0,26);byDesc[k]=(byDesc[k]||0)+p.valor;});
+  const topDesc=Object.entries(byDesc).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+  const PAL=['#2D2B8A','#E05252','#22C55E','#F4A0B0','#5B59D6','#3B82F6','#F59E0B','#A78BFA'];
+
+  destroyChart('cResp');
+  const e1=document.getElementById('cResp');
+  if(e1&&respE.length)_charts.cResp=new Chart(e1,{type:'bar',data:{labels:respE.map(([r])=>getRespLabel(r)),datasets:[{data:respE.map(([,v])=>v),backgroundColor:respE.map(([r])=>getRespColor(r)+'cc'),borderColor:respE.map(([r])=>getRespColor(r)),borderWidth:0,borderRadius:6}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},datalabels:{display:false},tooltip:{callbacks:{label:c=>' '+fmtTick(c.raw)}}},scales:{x:{ticks:{callback:fmtTick,maxTicksLimit:5,color:'#7C7C9C'},grid:{color:grid}},y:{grid:{display:false},ticks:{color:'#1A1A2E',font:{size:11}}}}}});
+
+  destroyChart('cCartao');
+  const e2=document.getElementById('cCartao');
+  if(e2&&cartaoE.length)_charts.cCartao=new Chart(e2,{type:'doughnut',data:{labels:cartaoE.map(([k])=>k),datasets:[{data:cartaoE.map(([,v])=>v),backgroundColor:PAL,borderColor:'#FFFFFF',borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#1A1A2E',font:{size:11},padding:12}},datalabels:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtTick(c.raw)}`}}}}});
+
+  destroyChart('cDesc');
+  const e3=document.getElementById('cDesc');
+  if(e3&&topDesc.length)_charts.cDesc=new Chart(e3,{type:'bar',data:{labels:topDesc.map(([k])=>k),datasets:[{data:topDesc.map(([,v])=>v),backgroundColor:'#F4A0B0',borderColor:'#E05252',borderWidth:0,borderRadius:6}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},datalabels:{display:false},tooltip:{callbacks:{label:c=>' '+fmtTick(c.raw)}}},scales:{x:{ticks:{callback:fmtTick,maxTicksLimit:5,color:'#7C7C9C'},grid:{color:grid}},y:{grid:{display:false},ticks:{color:'#1A1A2E',font:{size:11}}}}}});
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+function sidebarHTML(){
+  const v=state.view;const has=state.purchases.length>0;
+  const pending=state.purchases.filter(p=>!p.responsavel).length;
+  const months=[];for(let i=0;i<18;i++){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  const showFilters=has&&(v==='dashboard'||v==='tabela');
+  return`<aside class="sidebar">
+    <div class="sb-logo">
+      <span class="sb-logo-title">Fatura Inteligente</span>
+      <span class="sb-logo-badge">Claude · v2</span>
+    </div>
+
+    <div class="sb-section">
+      <span class="sb-label">Análise</span>
+      <button class="nav-item ${v==='dashboard'?'active':''}" id="navDashboard" ${!has?'disabled':''}>
+        <span class="nav-icon">📊</span> Dashboard
+        ${pending>0?`<span class="nav-badge">${pending}</span>`:''}
+      </button>
+      <button class="nav-item ${v==='tabela'?'active':''}" id="navTabela" ${!has?'disabled':''}>
+        <span class="nav-icon">📋</span> Tabela
+      </button>
+      <button class="nav-item ${v==='mensagens'?'active':''}" id="navMensagens" ${!has?'disabled':''}>
+        <span class="nav-icon">💬</span> Mensagens
+      </button>
+      <button class="nav-item ${v==='projecao'?'active':''}" id="navProjecao" ${!has?'disabled':''}>
+        <span class="nav-icon">📅</span> Projeção
+      </button>
+    </div>
+
+    <div class="sb-section">
+      <span class="sb-label">Faturas</span>
+      <button class="nav-item ${v==='upload'?'active':''}" id="navUpload">
+        <span class="nav-icon">📂</span> Nova Fatura
+      </button>
+      <button class="nav-item" id="navHistorico" ${!state.sheetsUrl?'disabled':''}>
+        <span class="nav-icon">📅</span> Histórico
+      </button>
+    </div>
+
+    ${showFilters?`<div class="sb-section">
+      <span class="sb-label">Filtros</span>
+      <div class="sb-filters">
+        <label class="sf-label">Mês</label>
+        <select class="sf-select" id="monthSel">
+          ${months.map(m=>`<option value="${m}"${m===state.month?' selected':''}>${m}</option>`).join('')}
+        </select>
+        <label class="sf-label">Responsável</label>
+        <select class="sf-select" id="fResp">
+          <option>Todos</option>
+          ${[...Object.keys(RESPONSAVEIS),...Object.keys(REGRAS)].map(r=>`<option${r===state.filter.resp?' selected':''}>${r}</option>`).join('')}
+        </select>
+        <label class="sf-label">Cartão</label>
+        <select class="sf-select" id="fCartao">
+          <option>Todos</option>
+          ${[...new Set(state.purchases.map(p=>p.cartao))].map(c=>`<option${c===state.filter.cartao?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>`:''}
+
+    <div class="sb-bottom">
+      <button class="nav-item ${v==='config'?'active':''}" id="navConfig">
+        <span class="nav-icon">⚙</span> Configurações
+      </button>
+    </div>
+  </aside>`;
+}
+
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+function dashboardHTML(){
+  if(!state.purchases.length)return emptyHTML('📊','Nenhuma fatura carregada','Vá em Nova Fatura para processar um PDF.','navUpload','📂 Nova Fatura');
+  const total=state.purchases.reduce((s,p)=>s+p.valor,0);
+  const totais=getTotais();
+  const pending=state.purchases.filter(p=>!p.responsavel).length;
+  const atrib=state.purchases.filter(p=>p.responsavel).reduce((s,p)=>s+p.valor,0);
+  const sorted=Object.entries(totais).sort((a,b)=>b[1]-a[1]);
+  const maior=sorted[0];
+  const [ano,mn]=state.month.split('-');
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mesLabel=meses[parseInt(mn)-1]+'/'+ano;
+  return`<div class="content fade-in">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-sub">${mesLabel} · ${state.purchases.length} compras · ${fmt(total)}</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary" id="btnNovaFatura">📂 Nova Fatura</button>
+        <button class="btn btn-primary" id="saveBtn" ${state.saving?'disabled':''}>
+          ${state.saving?'⏳ Salvando...':'↑ Salvar no Sheets'}
+        </button>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card c-primary">
+        <div class="kpi-label">Total Geral</div>
+        <div class="kpi-value">${fmt(total)}</div>
+        <div class="kpi-sub">${state.purchases.length} compras · ${mesLabel}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Atribuído</div>
+        <div class="kpi-value">${fmt(atrib)}</div>
+        <div class="kpi-sub">${total>0?(atrib/total*100).toFixed(1):0}% do total</div>
+      </div>
+      <div class="kpi-card ${pending>0?'c-red':'c-green'}">
+        <div class="kpi-label">Pendentes</div>
+        <div class="kpi-value">${pending}</div>
+        <div class="kpi-sub">${pending>0?'compras sem responsável':'✓ todas atribuídas'}</div>
+      </div>
+      <div class="kpi-card c-dark">
+        <div class="kpi-label">Maior Gasto</div>
+        <div class="kpi-value">${maior?getRespLabel(maior[0]):'—'}</div>
+        <div class="kpi-sub">${maior?fmt(maior[1]):'—'}</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Gastos por Responsável</div>
+        <canvas id="cResp" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por Cartão</div>
+        <canvas id="cCartao" height="200"></canvas>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.25rem">
+      <div class="chart-title">Top 10 Estabelecimentos</div>
+      <canvas id="cDesc" height="180"></canvas>
+    </div>
+
+    <div style="font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:.75rem">Resumo por Responsável</div>
+    <div class="person-grid">
+      ${Object.entries(getSummaries()).filter(([k])=>k!=='_pending').map(([r,s])=>{
+        const cor=getRespColor(r);
+        return`<div class="person-card" style="border-color:${cor}30">
+          <div class="person-card-hdr" style="background:${cor}10">
+            <div class="person-avatar" style="background:${cor}20;border:2px solid ${cor};color:${cor}">${r.slice(0,2)}</div>
+            <span class="person-name">${getRespLabel(r)}</span>
+            <span class="person-total" style="color:${cor}">${fmt(s.total)}</span>
+          </div>
+          <div class="person-items" style="padding:0">
+            ${(()=>{
+              const byCartao={};
+              s.items.forEach(i=>{if(!byCartao[i.cartao])byCartao[i.cartao]=[];byCartao[i.cartao].push(i);});
+              let count=0;
+              return Object.entries(byCartao).map(([cartao,itens])=>{
+                const rows=itens.slice(0,Math.max(1,6-count)).map(i=>{count++;return`<div class="person-item" style="padding:.28rem 1.1rem">
+                  <span class="person-item-date">${fmtData(i.data)}</span>
+                  <span class="person-item-desc" title="${i.descricao}">${limparDesc(i.descricao)}${i.pct?' (DIV)':''}</span>
+                  <span class="person-item-val">${fmt(i.valor)}</span>
+                </div>`;}).join('');
+                return`<div class="person-cartao-hdr">💳 ${cartao}</div>${rows}`;
+              }).join('')+(s.items.length>6?`<div style="font-size:.67rem;color:var(--muted);padding:.35rem 1.1rem .5rem">+ ${s.items.length-6} item(s)...</div>`:'');
+            })()}
+          </div>
+          <button class="person-copy-btn" data-resp="${r}">📋 Copiar para WhatsApp</button>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+// ─── TABELA VIEW ──────────────────────────────────────────────────────────────
+function tabelaHTML(){
+  if(!state.purchases.length)return emptyHTML('📋','Nenhuma fatura carregada','Vá em Nova Fatura para processar um PDF.','navUpload','📂 Nova Fatura');
+  const filtered=getFiltered();
+  const pending=filtered.filter(p=>!p.responsavel).length;
+  const subtotal=filtered.reduce((s,p)=>s+p.valor,0);
+  const pos=state.pendingCursor>0?` · ${((state.pendingCursor-1)%Math.max(pending,1))+1}/${pending}`:'';
+  return`<div class="content fade-in">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Tabela</h1>
+        <div class="page-sub">${state.purchases.length} compras · ${state.month}</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-primary" id="saveBtn" ${state.saving?'disabled':''}>
+          ${state.saving?'⏳ Salvando...':'↑ Salvar no Sheets'}
+        </button>
+      </div>
+    </div>
+    <div class="tb-toolbar">
+      <input class="tb-search" id="fBusca" placeholder="🔍 Buscar descrição..." value="${state.filter.busca}">
+      <select class="tb-sel" id="fOrigem">
+        <option>Todos</option>
+        <option>historico</option><option>regra</option><option>parcela</option><option>manual</option>
+      </select>
+      ${pending>0?`<span class="pending-badge ${state.pendingCursor>0?'nav-mode':''}" id="pendingBadge" title="Navegar pendentes">⚠ ${pending} pendente${pending>1?'s':''}${pos} ↓</span>`:''}
+      <span class="tb-count">${filtered.length}/${state.purchases.length}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          ${[['data','Data'],['descricao','Descrição'],['','Parcela'],['cartao','Cartão'],['','Responsável'],['','Origem'],['valor','Valor']].map(([col,lbl])=>`
+          <th ${col?`data-col="${col}"`:''}>${lbl}${col&&state.sort.col===col?(state.sort.dir==='asc'?' ↑':' ↓'):''}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${filtered.length===0?`<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhuma compra</td></tr>`:''}
+          ${filtered.map(p=>{
+            const rc=getRespColor(p.responsavel);
+            return`<tr data-rowid="${p.id}" class="${p.id===state.highlightId&&!p.responsavel?'highlight-row':''}">
+              <td class="td-date">${fmtData(p.data)}</td>
+              <td class="td-desc" title="${p.descricao}">${p.descricao}</td>
+              <td class="td-parcela">${p.parcela?`${p.parcela.atual}/${p.parcela.total}`:'—'}</td>
+              <td class="td-cartao">${p.cartao}</td>
+              <td>
+                <select class="resp-select" data-id="${p.id}" style="border-color:${rc}40;color:${rc}">
+                  <option value="">⚠ Pendente</option>
+                  ${Object.keys(RESPONSAVEIS).map(r=>`<option value="${r}"${r===p.responsavel?' selected':''}>${r} · ${RESPONSAVEIS[r].nome}</option>`).join('')}
+                  <optgroup label="── Regras ──">
+                  ${Object.keys(REGRAS).map(r=>`<option value="${r}"${r===p.responsavel?' selected':''}>${r} · ${REGRAS[r].nome}</option>`).join('')}
+                  </optgroup>
+                </select>
+              </td>
+              <td><span class="origem-pill origem-${p.origem}">${p.origem}</span></td>
+              <td class="td-valor">${fmt(p.valor)}</td>
+            </tr>`;
+          }).join('')}
+          <tr class="subtotal-row">
+            <td colspan="6" style="text-align:right;font-family:var(--mono);font-size:.65rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Subtotal (${filtered.length})</td>
+            <td class="td-valor" style="color:var(--amber2)">${fmt(subtotal)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ─── UPLOAD VIEW ──────────────────────────────────────────────────────────────
+function uploadHTML(){
+  if(state.uploadStep===2){
+    return`<div class="content fade-in">
+      <div class="page-header"><div>
+        <h1 class="page-title">Processando...</h1>
+        <div class="page-sub">Claude está lendo as faturas</div>
+      </div></div>
+      ${state.processing.map(p=>`<div class="proc-item">
+        <div class="proc-status">
+          ${p.status==='waiting'?`<div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border)"></div>`:''}
+          ${p.status==='processing'?`<div class="spinner"></div>`:''}
+          ${p.status==='done'?`<span style="color:var(--green);font-size:1rem">✓</span>`:''}
+          ${p.status==='error'?`<span style="color:var(--red);font-size:1rem">✗</span>`:''}
+          <div>
+            <div class="proc-filename" style="font-size:.82rem;font-weight:500">${p.name} <span style="color:var(--muted);font-size:.68rem">[${p.cartao}]</span></div>
+            <div style="font-family:var(--mono);font-size:.68rem;color:var(--muted);margin-top:.2rem">
+              ${p.status==='waiting'?'Aguardando...':`${p.status==='processing'?'<span class="pulse">Extraindo...</span>':p.status==='done'?p.count+' compras':'Erro: '+p.error}`}
+            </div>
+          </div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${p.status==='done'?100:p.status==='processing'?60:0}%;${p.status==='error'?'background:var(--red)':''}"></div></div>
+      </div>`).join('')}
+    </div>`;
+  }
+  return`<div class="content fade-in">
+    <div class="page-header"><div>
+      <h1 class="page-title">Nova Fatura</h1>
+      <div class="page-sub">Carregue os PDFs dos cartões para processar com IA</div>
+    </div></div>
+    <div class="upload-wrap">
+      <div class="upload-zone ${state.dragging?'drag':''}" id="dropZone">
+        <div class="icon">📂</div>
+        <h3>Arraste os PDFs aqui</h3>
+        <p>Um arquivo por cartão — o tipo é detectado pelo nome do arquivo</p>
+        <label class="upload-btn-lbl" for="fileInput">Selecionar arquivos</label>
+        <input type="file" id="fileInput" multiple accept=".pdf">
+      </div>
+      ${state.files.length?`
+      <div class="file-list">
+        ${state.files.map(f=>`<div class="file-item">
+          <span class="file-icon">📄</span>
+          <div class="file-info">
+            <div class="file-name">${f.file.name}</div>
+            <div class="file-size">${(f.file.size/1024).toFixed(1)} KB</div>
+          </div>
+          <select class="card-select" data-id="${f.id}">
+            ${getCartoes().map(c=>`<option${c===f.cartao?' selected':''}>${c}</option>`).join('')}
+          </select>
+          <button class="file-remove" data-id="${f.id}">✕</button>
+        </div>`).join('')}
+      </div>
+      <button class="process-btn" id="processBtn">✦ Processar ${state.files.length} fatura${state.files.length>1?'s':''}</button>
+      `:''}
+    </div>
+  </div>`;
+}
+
+// ─── MENSAGENS VIEW ───────────────────────────────────────────────────────────
+function mensagensViewHTML(){
+  if(!state.purchases.length)return emptyHTML('💬','Sem dados','Processe uma fatura primeiro.','navUpload','📂 Nova Fatura');
+  const summaries=getSummaries();
+  const [ano,mn]=state.month.split('-');
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mesLabel=meses[parseInt(mn)-1]+'/'+ano;
+  return`<div class="content fade-in">
+    <div class="page-header"><div>
+      <h1 class="page-title">Mensagens</h1>
+      <div class="page-sub">Copie e envie pelo WhatsApp — ${mesLabel}</div>
+    </div></div>
+    ${Object.entries(summaries).filter(([k])=>k!=='_pending').map(([r,s])=>{
+      const cor=getRespColor(r);
+      const byCartao={};
+      s.items.forEach(i=>{if(!byCartao[i.cartao])byCartao[i.cartao]=[];byCartao[i.cartao].push(i);});
+      const blocos=Object.entries(byCartao).map(([cartao,itens])=>{
+        const rows=itens.map(i=>`• ${fmtData(i.data)}  ${(limparDesc(i.descricao)+(i.pct?' (DIV)':''))
+          .slice(0,28).padEnd(28,' ')} ${fmt(i.valor)}`).join('\n');
+        return`💳 *${cartao}*\n${rows}`;
+      }).join('\n\n');
+      const msg=`📋 *${getRespLabel(r)} — ${mesLabel}*\n\n${blocos}\n\n${'─'.repeat(40)}\n*Total: ${fmt(s.total)}*`;
+      return`<div class="msg-card">
+        <div class="msg-card-head" style="border-left:3px solid ${cor}">
+          <span style="color:${cor};font-weight:700;font-size:.85rem">${getRespLabel(r)}</span>
+          <span style="font-family:var(--mono);font-size:.78rem">${fmt(s.total)} · ${s.items.length} item(s)</span>
+        </div>
+        <pre class="msg-pre">${msg}</pre>
+        <button class="msg-copy" data-msg="${encodeURIComponent(msg)}">📋 Copiar para WhatsApp</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ─── PROJEÇÃO VIEW ────────────────────────────────────────────────────────────
+function projecaoHTML(){
+  if(!state.purchases.length)return emptyHTML('📅','Nenhuma fatura carregada','Vá em Nova Fatura para processar um PDF.','navUpload','📂 Nova Fatura');
+  const{meses,parceladas,totalProjetado,maxMes,quitacao}=getProjecao();
+  if(!parceladas.length)return`<div class="content fade-in">
+    <div class="page-header"><div>
+      <h1 class="page-title">Projeção de Parcelas</h1>
+      <div class="page-sub">Compromissos futuros com base nas parcelas ativas</div>
+    </div></div>
+    <div class="empty">
+      <div class="empty-icon">📅</div>
+      <div class="empty-title">Nenhuma compra parcelada</div>
+      <div class="empty-sub">Todas as compras desta fatura são à vista.</div>
+    </div>
+  </div>`;
+  const[ano,mn]=state.month.split('-');
+  const ML=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mesLabel=ML[parseInt(mn)-1]+'/'+ano;
+  return`<div class="content fade-in">
+    <div class="page-header"><div>
+      <h1 class="page-title">Projeção de Parcelas</h1>
+      <div class="page-sub">Base: ${mesLabel} · ${parceladas.length} compra${parceladas.length!==1?'s':''} parcelada${parceladas.length!==1?'s':''} ativa${parceladas.length!==1?'s':''}</div>
+    </div></div>
+    <div class="kpi-grid">
+      <div class="kpi-card c-primary">
+        <div class="kpi-label">Total Projetado (12 meses)</div>
+        <div class="kpi-value">${fmt(totalProjetado)}</div>
+        <div class="kpi-sub">em parcelas futuras</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Compras Parceladas</div>
+        <div class="kpi-value">${parceladas.length}</div>
+        <div class="kpi-sub">com parcelas restantes</div>
+      </div>
+      <div class="kpi-card c-red">
+        <div class="kpi-label">Maior Compromisso</div>
+        <div class="kpi-value">${fmt(maxMes.total)}</div>
+        <div class="kpi-sub">${maxMes.label}</div>
+      </div>
+      <div class="kpi-card c-dark">
+        <div class="kpi-label">Quitação Prevista</div>
+        <div class="kpi-value">${quitacao}</div>
+        <div class="kpi-sub">última parcela ativa</div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.25rem">
+      <div class="chart-title">Projeção Mês a Mês — próximos 12 meses</div>
+      <canvas id="cProjecao" height="180"></canvas>
+    </div>
+    <div style="font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:.75rem">Detalhamento das Parcelas Ativas</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Descrição</th><th>Cartão</th><th>Resp.</th>
+          <th style="text-align:right">Valor/Parc.</th>
+          <th style="text-align:center">Parcela</th>
+          <th style="text-align:center">Restam</th>
+          <th>Quitação</th>
+        </tr></thead>
+        <tbody>
+          ${parceladas.slice().sort((a,b)=>(b.parcela.total-b.parcela.atual)-(a.parcela.total-a.parcela.atual)).map(p=>{
+            const rest=p.parcela.total-p.parcela.atual;
+            const d=new Date(parseInt(ano),parseInt(mn)-1+rest,1);
+            const qLbl=ML[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);
+            const pct=Math.round(p.parcela.atual/p.parcela.total*100);
+            const rc=getRespColor(p.responsavel);
+            return`<tr>
+              <td class="td-desc" title="${p.descricao}">${limparDesc(p.descricao)}</td>
+              <td class="td-cartao">${p.cartao}</td>
+              <td><span style="font-size:.68rem;font-family:var(--mono);color:${rc}">${getRespLabel(p.responsavel)||'—'}</span></td>
+              <td class="td-valor">${fmt(p.valor)}</td>
+              <td style="text-align:center">
+                <span class="td-parcela">${p.parcela.atual}/${p.parcela.total}</span>
+                <div class="proj-bar-wrap"><div class="proj-bar-fill" style="width:${pct}%"></div></div>
+              </td>
+              <td style="text-align:center;font-family:var(--mono);font-size:.72rem;color:${rest<=2?'var(--green)':rest<=5?'var(--primary)':'var(--text)'}">
+                ${rest}x
+              </td>
+              <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${qLbl}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ─── CONFIG VIEW ──────────────────────────────────────────────────────────────
+function configViewHTML(){
+  const cartoes=getCartoes();
+  return`<div class="content fade-in">
+    <div class="page-header"><div>
+      <h1 class="page-title">Configurações</h1>
+      <div class="page-sub">Integrações e preferências</div>
+    </div></div>
+    <div style="max-width:580px">
+      <div class="cfg-section">
+        <div class="cfg-title">Google Apps Script — URL de integração</div>
+        <div class="cfg-row">
+          <input class="cfg-input" id="urlInput" placeholder="https://script.google.com/macros/s/.../exec" value="${state.sheetsUrl}">
+          <button class="btn btn-primary" id="saveUrl">Salvar</button>
+        </div>
+        <p style="font-size:.7rem;color:var(--muted);margin-top:.65rem">Cole a URL gerada após implantar o Apps Script na sua planilha.</p>
+      </div>
+      <div class="cfg-section">
+        <div class="cfg-title">Cartões cadastrados</div>
+        <div class="cartao-tags">
+          ${cartoes.map(c=>`<span class="cartao-tag">${c}<button class="cartao-rm" data-cartao="${c}">✕</button></span>`).join('')}
+        </div>
+        <div class="cfg-row">
+          <input class="cfg-input" id="novoCartao" placeholder="Ex: NUBANK, BTG..." style="text-transform:uppercase">
+          <button class="btn btn-primary" id="addCartaoBtn">+ Adicionar</button>
+        </div>
+      </div>
+      ${state.purchases.length?`<div class="cfg-section">
+        <div class="cfg-title">Sessão atual</div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.875rem">${state.purchases.length} compras carregadas de ${state.month}. Limpar remove os dados da memória e do localStorage.</p>
+        <button class="btn btn-secondary" id="clearSessionBtn" style="color:#f87171;border-color:rgba(239,68,68,.3)">🗑 Limpar sessão</button>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+
+// ─── HELPERS HTML ─────────────────────────────────────────────────────────────
+function emptyHTML(icon,title,sub,btnId,btnLabel){
+  return`<div class="content"><div class="empty">
+    <div class="empty-icon">${icon}</div>
+    <div class="empty-title">${title}</div>
+    <div class="empty-sub">${sub}</div>
+    <button class="btn btn-primary" id="${btnId}">${btnLabel}</button>
+  </div></div>`;
+}
+
+function histModalHTML(){
+  const months=[];
+  for(let i=0;i<24;i++){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function fmtMes(m){const[a,mn]=m.split('-');return meses[parseInt(mn)-1]+'/'+a;}
+  const atual=state.month;
+  return`<div class="modal-overlay" id="histOverlay">
+    <div class="modal fade-in">
+      <h3>📅 Consultar Histórico</h3>
+      <p>Escolha o mês para buscar as compras salvas no Google Sheets.</p>
+      <label style="font-size:.7rem;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:.4rem">Mês</label>
+      <select id="histMes" style="margin-bottom:.5rem">
+        ${months.map(m=>`<option value="${m}"${m===atual?' selected':''}>${fmtMes(m)}${m===atual?' ← atual':''}</option>`).join('')}
+      </select>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;font-family:var(--mono)">
+        Mês selecionado: <strong id="histMesLabel" style="color:var(--primary)">${fmtMes(atual)}</strong>
+      </div>
+      <div class="modal-err" id="histErr">${state.histErro?`⚠ ${state.histErro}. Verifique se o mês selecionado tem dados no Sheets.`:''}</div>
+      <div class="modal-btns">
+        <button class="btn btn-secondary" style="flex:1" id="histCancelar">Cancelar</button>
+        <button class="btn btn-primary" style="flex:2" id="histBuscar" ${state.histLoading?'disabled':''}>
+          ${state.histLoading?'⏳ Buscando...':'🔍 Buscar'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(){
+  // Salva foco e posição do cursor antes de recriar o DOM
+  const prevFocus=document.activeElement;
+  const prevId=prevFocus?.id;
+  const prevPos=prevFocus?.selectionStart;
+
+  const v=state.view;
+  document.getElementById('app').innerHTML=`
+    <div class="app-shell">
+      ${sidebarHTML()}
+      <main class="main-panel">
+        ${v==='dashboard'?dashboardHTML():''}
+        ${v==='tabela'?tabelaHTML():''}
+        ${v==='upload'?uploadHTML():''}
+        ${v==='mensagens'?mensagensViewHTML():''}
+        ${v==='projecao'?projecaoHTML():''}
+        ${v==='config'?configViewHTML():''}
+      </main>
+    </div>
+    ${state.showHistModal?histModalHTML():''}
+  `;
+  bindEvents();
+
+  // Restaura foco no mesmo input após re-render
+  if(prevId){
+    const el=document.getElementById(prevId);
+    if(el&&typeof el.focus==='function'){
+      el.focus();
+      if(prevPos!=null&&el.setSelectionRange)el.setSelectionRange(prevPos,prevPos);
+    }
+  }
+
+  setTimeout(initCharts,60);
+  if(state.highlightId){
+    setTimeout(()=>{const r=document.querySelector('tr.highlight-row');if(r)r.scrollIntoView({behavior:'smooth',block:'center'});},90);
+  }
+}
+
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
+function bindEvents(){
+  const $=id=>document.getElementById(id);
+
+  // Nav
+  $('navDashboard')?.addEventListener('click',()=>setState({view:'dashboard'}));
+  $('navTabela')?.addEventListener('click',()=>setState({view:'tabela'}));
+  $('navMensagens')?.addEventListener('click',()=>setState({view:'mensagens'}));
+  $('navProjecao')?.addEventListener('click',()=>setState({view:'projecao'}));
+  $('navUpload')?.addEventListener('click',()=>setState({view:'upload',uploadStep:1,files:[]}));
+  $('navHistorico')?.addEventListener('click',()=>setState({showHistModal:true,histErro:''}));
+  $('navConfig')?.addEventListener('click',()=>setState({view:'config'}));
+  $('btnNovaFatura')?.addEventListener('click',()=>setState({view:'upload',uploadStep:1,files:[]}));
+
+  // Filtros sidebar
+  $('monthSel')?.addEventListener('change',e=>setState({month:e.target.value}));
+  $('fResp')?.addEventListener('change',e=>setState({filter:{...state.filter,resp:e.target.value}}));
+  $('fCartao')?.addEventListener('change',e=>setState({filter:{...state.filter,cartao:e.target.value}}));
+
+  // Filtro tabela
+  $('fBusca')?.addEventListener('input',e=>setState({filter:{...state.filter,busca:e.target.value}}));
+  $('fOrigem')?.addEventListener('change',e=>setState({filter:{...state.filter,origem:e.target.value}}));
+
+  // Pending nav
+  $('pendingBadge')?.addEventListener('click',()=>{
+    const pend=getFiltered().filter(p=>!p.responsavel);
+    if(!pend.length)return;
+    const idx=state.pendingCursor%pend.length;
+    setState({pendingCursor:state.pendingCursor+1,highlightId:pend[idx].id});
+  });
+
+  // Ordenação
+  document.querySelectorAll('thead th[data-col]').forEach(th=>th.addEventListener('click',()=>{
+    const col=th.dataset.col;
+    setState({sort:{col,dir:state.sort.col===col&&state.sort.dir==='asc'?'desc':'asc'}});
+  }));
+
+  // Resp select
+  document.querySelectorAll('.resp-select').forEach(s=>s.addEventListener('change',e=>{
+    const id=e.target.dataset.id,val=e.target.value;
+    const nh=state.highlightId===id?null:state.highlightId;
+    setState({purchases:state.purchases.map(p=>p.id===id?{...p,responsavel:val||null,origem:'manual'}:p),highlightId:nh});
+    saveSession();
+  }));
+
+  // Save
+  $('saveBtn')?.addEventListener('click',saveToSheets);
+
+  // Upload
+  $('fileInput')?.addEventListener('change',e=>{
+    const nf=[...e.target.files].map(f=>({id:uid(),file:f,cartao:detectCartao(f.name)}));
+    setState({files:[...state.files,...nf]});
+  });
+  const dz=$('dropZone');
+  if(dz){
+    dz.addEventListener('dragover',e=>{e.preventDefault();setState({dragging:true});});
+    dz.addEventListener('dragleave',()=>setState({dragging:false}));
+    dz.addEventListener('drop',e=>{
+      e.preventDefault();
+      const nf=[...e.dataTransfer.files].filter(f=>f.name.endsWith('.pdf')).map(f=>({id:uid(),file:f,cartao:detectCartao(f.name)}));
+      setState({dragging:false,files:[...state.files,...nf]});
+    });
+  }
+  document.querySelectorAll('.file-remove').forEach(b=>b.addEventListener('click',()=>setState({files:state.files.filter(f=>f.id!==b.dataset.id)})));
+  document.querySelectorAll('.card-select').forEach(s=>s.addEventListener('change',e=>setState({files:state.files.map(f=>f.id===e.target.dataset.id?{...f,cartao:e.target.value}:f)})));
+  $('processBtn')?.addEventListener('click',processFiles);
+
+  // Config
+  $('saveUrl')?.addEventListener('click',()=>{
+    const url=($('urlInput').value||'').trim();
+    localStorage.setItem('sheetsUrl',url);
+    setState({sheetsUrl:url});
+  });
+  $('addCartaoBtn')?.addEventListener('click',()=>{
+    const inp=$('novoCartao');const val=(inp.value||'').trim().toUpperCase();
+    if(!val)return;const list=getCartoes();
+    if(!list.includes(val))saveCartoes([...list,val]);
+    inp.value='';setState({});
+  });
+  $('novoCartao')?.addEventListener('keydown',e=>{if(e.key==='Enter')$('addCartaoBtn')?.click();});
+  document.querySelectorAll('.cartao-rm').forEach(b=>b.addEventListener('click',()=>{
+    const list=getCartoes().filter(x=>x!==b.dataset.cartao);
+    if(list.length>0)saveCartoes(list);setState({});
+  }));
+  $('clearSessionBtn')?.addEventListener('click',()=>{
+    if(confirm('Limpar todos os dados da sessão?')){clearSession();setState({purchases:[],view:'upload',uploadStep:1,files:[]});}
+  });
+
+  // WhatsApp copy
+  document.querySelectorAll('.msg-copy').forEach(btn=>btn.addEventListener('click',()=>{
+    const msg=decodeURIComponent(btn.dataset.msg);
+    navigator.clipboard.writeText(msg).then(()=>{const o=btn.textContent;btn.textContent='✓ Copiado!';setTimeout(()=>{btn.textContent=o;},2000);});
+  }));
+  document.querySelectorAll('.person-copy-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const summaries=getSummaries();const r=btn.dataset.resp;const s=summaries[r];if(!s)return;
+    const [ano,mn]=state.month.split('-');
+    const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const ml=meses[parseInt(mn)-1]+'/'+ano;
+    const byC={};s.items.forEach(i=>{if(!byC[i.cartao])byC[i.cartao]=[];byC[i.cartao].push(i);});
+    const blocos=Object.entries(byC).map(([cartao,itens])=>{
+      const rows=itens.map(i=>`• ${fmtData(i.data)}  ${(limparDesc(i.descricao)+(i.pct?' (DIV)':'')).slice(0,28).padEnd(28,' ')} ${fmt(i.valor)}`).join('\n');
+      return`💳 *${cartao}*\n${rows}`;
+    }).join('\n\n');
+    const text=`📋 *${getRespLabel(r)} — ${ml}*\n\n${blocos}\n\n${'─'.repeat(40)}\n*TOTAL: ${fmt(s.total)}*`;
+    navigator.clipboard.writeText(text).then(()=>{const o=btn.textContent;btn.textContent='✓ Copiado!';setTimeout(()=>{btn.textContent=o;},2000);});
+  }));
+
+  // Modal histórico
+  $('histCancelar')?.addEventListener('click',()=>setState({showHistModal:false,histErro:'',histLoading:false}));
+  $('histOverlay')?.addEventListener('click',e=>{if(e.target===e.currentTarget)setState({showHistModal:false,histErro:'',histLoading:false});});
+  $('histMes')?.addEventListener('change',e=>{
+    const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const[a,mn]=e.target.value.split('-');
+    const label=$('histMesLabel');
+    if(label)label.textContent=meses[parseInt(mn)-1]+'/'+a;
+  });
+  $('histBuscar')?.addEventListener('click',()=>{const mes=$('histMes')?.value;if(mes)fetchHistorico(mes);});
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
