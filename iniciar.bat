@@ -1,8 +1,18 @@
 @echo off
-title Fatura Inteligente v2
+title Fatura Inteligente v2 (CONGELADA)
 cd /d "%~dp0"
 echo.
-echo  === FATURA INTELIGENTE ===
+echo  ============================================
+echo   FATURA INTELIGENTE v2 -- CONGELADA
+echo  ============================================
+echo.
+echo   Esta versao (v2) esta congelada desde jul/2026.
+echo   Use a v3 (Next.js + Vercel) para o fluxo mensal.
+echo.
+echo   A v2 permanece como fallback/backup historico.
+echo   Consulte ..\fatura-inteligente-v3\README.md
+echo.
+echo  ============================================
 echo.
 
 where node >nul 2>nul

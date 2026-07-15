@@ -1,4 +1,13 @@
-# FATURA INTELIGENTE — CONTEXTO DO PROJETO
+# FATURA INTELIGENTE — CONTEXTO DO PROJETO (v2 — CONGELADA)
+
+> ⚠️ **Esta versão (v2) está congelada.** A v3 está em produção desde jul/2026:
+> `fatura-inteligente-v3/` (Next.js 16 + Vercel + Supabase Postgres).
+> A v2 permanece como fallback/backup histórico. Os PDFs de fatura e dados
+> financeiros continuam em `Downloads/` e `Downloads/01_Financeiro/Faturas/`.
+>
+> **Não use `iniciar.bat` para o fluxo mensal** — acesse a v3 pelo domínio
+> na Vercel (ver `../fatura-inteligente-v3/README.md`).
+>
 > Leia este arquivo antes de qualquer tarefa. Ele contém todo o histórico de decisões, arquitetura e estado atual do sistema.
 
 ---
